@@ -8,8 +8,12 @@ export function notFound(req, res) {
 export function errorHandler(err, req, res, _next) {
   const status = err.status ?? err.statusCode ?? 500;
   if (status >= 500) logger.error({ err }, 'Unhandled error');
+  if (status >= 500) {
+    return res.status(status).json({ error: 'internal_error', message: 'Something went wrong' });
+  }
   res.status(status).json({
-    error: err.code ?? (status >= 500 ? 'internal_error' : 'bad_request'),
-    message: status >= 500 ? 'Something went wrong' : err.message,
+    error: typeof err.code === 'string' ? err.code : 'bad_request',
+    message: err.message,
+    ...(err.details ? { details: err.details } : {}),
   });
 }

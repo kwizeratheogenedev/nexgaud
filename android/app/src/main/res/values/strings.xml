@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NexGuard</string>
+    <string name="admin_label">NexGuard remote lock</string>
+    <string name="admin_description">Lets the owner lock this phone\'s screen from the NexGuard dashboard if it is lost.</string>
 </resources>

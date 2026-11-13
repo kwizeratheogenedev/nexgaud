@@ -1,54 +1,56 @@
 import { useEffect, useState } from 'react';
-import { getHealth } from './api.js';
+import { getHealth, refreshSession, setSignedOutHandler, signOut } from './api.js';
+import Login from './pages/Login.jsx';
+import Devices from './pages/Devices.jsx';
 
-const LABELS = {
-  loading: 'Checking…',
-  ok: 'API and database are up',
-  degraded: 'API is up, database is not connected',
-  down: 'API is not reachable',
-};
-
-export default function App() {
-  const [health, setHealth] = useState({ state: 'loading' });
-
+function HealthDot() {
+  const [state, setState] = useState('loading');
   useEffect(() => {
     let alive = true;
     const check = () =>
       getHealth()
-        .then((h) => alive && setHealth({ state: h.status === 'ok' ? 'ok' : 'degraded', ...h }))
-        .catch(() => alive && setHealth({ state: 'down' }));
+        .then((h) => alive && setState(h.status === 'ok' ? 'ok' : 'degraded'))
+        .catch(() => alive && setState('down'));
     check();
-    const id = setInterval(check, 15000);
+    const id = setInterval(check, 30000);
     return () => {
       alive = false;
       clearInterval(id);
     };
   }, []);
+  const label = { loading: 'Checking service', ok: 'Service is up', degraded: 'Service has problems', down: 'Service unreachable' }[state];
+  return <span className={`dot dot-${state}`} title={label} aria-label={label} role="img" />;
+}
+
+export default function App() {
+  const [user, setUser] = useState(undefined); // undefined = still checking the session
+
+  useEffect(() => {
+    setSignedOutHandler(() => setUser(null));
+    refreshSession().then(setUser).catch(() => setUser(null));
+  }, []);
+
+  if (user === undefined) return <p className="center">Loading…</p>;
+  if (!user) return <Login onSignedIn={setUser} />;
 
   return (
-    <main className="shell">
-      <header>
-        <h1>NexGuard</h1>
-        <p className="lead">Owner dashboard — Phase 0 skeleton. The map, devices and commands arrive in Phase 1.</p>
+    <div className="app">
+      <header className="topbar">
+        <strong className="brand">NexGuard</strong>
+        <HealthDot />
+        <span className="spacer" />
+        <span className="who">{user.name ?? user.phone}</span>
+        <button
+          className="link"
+          onClick={async () => {
+            await signOut();
+            setUser(null);
+          }}
+        >
+          Sign out
+        </button>
       </header>
-
-      <section className="card">
-        <h2>System status</h2>
-        <p className={`status status-${health.state}`}>
-          <span className="dot" aria-hidden="true" />
-          {LABELS[health.state]}
-        </p>
-        {health.startedAt && (
-          <dl>
-            <dt>Database</dt>
-            <dd>{health.db}</dd>
-            <dt>API version</dt>
-            <dd>{health.version}</dd>
-            <dt>Uptime</dt>
-            <dd>{health.uptimeSec}s</dd>
-          </dl>
-        )}
-      </section>
-    </main>
+      <Devices />
+    </div>
   );
 }
