@@ -18,6 +18,7 @@ class NexGuardApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Notifications.createChannels(this)
+        scope.launch { Prefs(this@NexGuardApp).encryptLegacyToken() }
         initPush()
     }
 

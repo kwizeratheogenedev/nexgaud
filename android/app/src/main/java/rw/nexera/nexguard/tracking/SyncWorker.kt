@@ -50,9 +50,14 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             val beat = Api.heartbeat(token, DeviceInfo.heartbeat(ctx, state.pushToken))
             commands += beat.commands
 
-            val lost = beat.status == "lost"
+            val lost = beat.lost
+            prefs.setLostMode(lost, beat.lostMode?.message, beat.lostMode?.contactPhone)
+            if (lost) {
+                Notifications.lost(ctx, beat.lostMode?.message, beat.lostMode?.contactPhone)
+            } else if (state.lostMode) {
+                Notifications.cancelLost(ctx)
+            }
             if (lost != state.lostMode) {
-                prefs.setLostMode(lost)
                 // Switch the service's update rate. Android may refuse this from the background;
                 // the new rate then applies the next time the service or app starts.
                 if (state.setupDone) TrackingService.start(ctx, lost)
@@ -68,6 +73,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 Log.w(TAG, "Device token no longer valid; unpairing")
                 prefs.clearPairing()
                 dao.clear()
+                Notifications.cancelLost(ctx)
                 TrackingService.stop(ctx)
                 WatchdogWorker.cancel(ctx)
                 Result.failure()

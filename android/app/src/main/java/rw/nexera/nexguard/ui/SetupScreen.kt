@@ -17,11 +17,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
+import rw.nexera.nexguard.R
 import rw.nexera.nexguard.commands.AdminReceiver
+import rw.nexera.nexguard.data.AppState
 import rw.nexera.nexguard.data.Prefs
 import rw.nexera.nexguard.tracking.SyncWorker
 import rw.nexera.nexguard.tracking.TrackingService
@@ -50,7 +53,10 @@ private fun Step(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (done) "✓" else "$number", style = MaterialTheme.typography.titleMedium)
-                Text(title + if (optional) " (optional)" else "", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (optional) stringResource(R.string.setup_optional, title) else title,
+                    style = MaterialTheme.typography.titleMedium,
+                )
             }
             Text(body, style = MaterialTheme.typography.bodyMedium)
             extra?.invoke()
@@ -66,13 +72,14 @@ private fun Step(
  * (Google Play requires this "prominent disclosure" for background location).
  */
 @Composable
-fun SetupScreen() {
+fun SetupScreen(state: AppState) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
 
     // Re-check every step whenever the user comes back from a system screen.
     var tick by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { tick++ }
+    var choosingPin by remember { mutableStateOf(false) }
 
     val needsNotificationPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     val notificationsOk = remember(tick) { DeviceInfo.notificationsEnabled(ctx) }
@@ -95,31 +102,32 @@ fun SetupScreen() {
         tick++
     }
     val adminLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { tick++ }
+    val adminExplanation = stringResource(R.string.admin_add_explanation)
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Set up protection", style = MaterialTheme.typography.headlineSmall)
-        Text("A few permissions let NexGuard keep working when the app is closed or the screen is locked.")
+        Text(stringResource(R.string.setup_title), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.setup_intro))
 
         var n = 1
         if (needsNotificationPermission) {
             Step(
                 number = n++,
-                title = "Notifications",
-                body = "NexGuard shows a notification while it protects this phone, and shows alarms and messages from you.",
+                title = stringResource(R.string.setup_notifications),
+                body = stringResource(R.string.setup_notifications_body),
                 done = notificationsOk,
-                action = "Allow notifications",
+                action = stringResource(R.string.setup_notifications_action),
                 onAction = { notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
             )
         }
         Step(
             number = n++,
-            title = "Location",
-            body = "NexGuard collects this phone's location and sends it to your NexGuard account, so you can find the phone if it is lost. Choose \"Precise\".",
+            title = stringResource(R.string.setup_location),
+            body = stringResource(R.string.setup_location_body),
             done = locationOk,
-            action = "Allow location",
+            action = stringResource(R.string.setup_location_action),
             onAction = {
                 locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             },
@@ -127,48 +135,55 @@ fun SetupScreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             Step(
                 number = n++,
-                title = "Location all the time",
-                body = "To keep finding the phone when NexGuard is closed or the screen is locked, choose \"Allow all the time\" on the next screen. Your location is only shared with your own account.",
+                title = stringResource(R.string.setup_background),
+                body = stringResource(R.string.setup_background_body),
                 done = backgroundOk,
-                action = if (anyLocation) "Choose \"Allow all the time\"" else null,
+                action = if (anyLocation) stringResource(R.string.setup_background_action) else null,
                 onAction = { backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION) },
             )
         }
         Step(
             number = n++,
-            title = "Battery",
-            body = "Many phones stop apps in the background to save battery. Let NexGuard run without restrictions. ${DeviceInfo.batteryTip()}",
+            title = stringResource(R.string.setup_battery),
+            body = stringResource(R.string.setup_battery_body, DeviceInfo.batteryTip(ctx)),
             done = batteryOk,
-            action = "Open battery settings",
+            action = stringResource(R.string.setup_battery_action),
             onAction = {
                 runCatching {
                     ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 }.onFailure { openAppSettings(ctx) }
             },
-            extra = { if (!batteryOk) TextButton(onClick = { openAppSettings(ctx) }) { Text("Open NexGuard's app settings") } },
+            extra = {
+                if (!batteryOk) TextButton(onClick = { openAppSettings(ctx) }) { Text(stringResource(R.string.setup_app_settings)) }
+            },
+        )
+        Step(
+            number = n++,
+            title = stringResource(R.string.setup_pin),
+            body = stringResource(R.string.setup_pin_body),
+            done = state.pinSet,
+            action = stringResource(R.string.pin_set_title),
+            onAction = { choosingPin = true },
         )
         Step(
             number = n,
-            title = "Remote lock",
-            body = "Lets you lock this phone's screen from the dashboard. NexGuard can only lock the screen; it cannot read or erase anything.",
+            title = stringResource(R.string.setup_lock),
+            body = stringResource(R.string.setup_lock_body),
             done = lockOk,
             optional = true,
-            action = "Turn on remote lock",
+            action = stringResource(R.string.setup_lock_action),
             onAction = {
                 adminLauncher.launch(
                     Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                         .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, AdminReceiver.component(ctx))
-                        .putExtra(
-                            DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                            "Lets the owner lock this screen from the NexGuard dashboard if the phone is lost.",
-                        ),
+                        .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, adminExplanation),
                 )
             },
         )
 
         if (anyLocation && !backgroundOk) {
             Text(
-                "Without \"Allow all the time\", NexGuard only works while the app is open or its notification is showing.",
+                stringResource(R.string.setup_background_warning),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -183,8 +198,10 @@ fun SetupScreen() {
                     SyncWorker.enqueue(ctx)
                 }
             },
-            enabled = anyLocation,
+            enabled = anyLocation && state.pinSet,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Start protecting this phone") }
+        ) { Text(stringResource(R.string.setup_start)) }
     }
+
+    if (choosingPin) SetPinDialog(onDone = { choosingPin = false }, onDismiss = { choosingPin = false })
 }

@@ -9,7 +9,9 @@ plugins {
 // Optional settings, read from gradle.properties (yours in ~/.gradle/, or android/gradle.properties):
 //   nexguard.apiUrl.release   the production API, e.g. https://api.nexera.rw/api/v1
 //   nexguard.fcm.appId / apiKey / projectId / senderId   from the Firebase console (Android app settings)
+//   nexguard.signing.storeFile / storePassword / keyAlias / keyPassword   the upload key for Google Play
 // Without the Firebase values the app still works: it picks up commands each time it uploads.
+// Keep the signing values in ~/.gradle/gradle.properties, never in this repository.
 fun prop(name: String, default: String = ""): String = (project.findProperty(name) as String?) ?: default
 fun quoted(value: String) = "\"" + value.replace("\"", "\\\"") + "\""
 
@@ -22,8 +24,8 @@ android {
         applicationId = "rw.nexera.nexguard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
 
         // The emulator reaches the PC's localhost at 10.0.2.2.
         buildConfigField("String", "API_BASE_URL", quoted(prop("nexguard.apiUrl.debug", "http://10.0.2.2:4000/api/v1")))
@@ -33,8 +35,22 @@ android {
         buildConfigField("String", "FCM_SENDER_ID", quoted(prop("nexguard.fcm.senderId")))
     }
 
+    signingConfigs {
+        // Release builds are signed only when the upload key is configured; otherwise they stay unsigned.
+        val storeFile = prop("nexguard.signing.storeFile")
+        if (storeFile.isNotBlank()) {
+            create("release") {
+                this.storeFile = file(storeFile)
+                storePassword = prop("nexguard.signing.storePassword")
+                keyAlias = prop("nexguard.signing.keyAlias")
+                keyPassword = prop("nexguard.signing.keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "API_BASE_URL", quoted(prop("nexguard.apiUrl.release", "https://api.example.com/api/v1")))

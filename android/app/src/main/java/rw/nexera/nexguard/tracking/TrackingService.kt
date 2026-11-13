@@ -2,8 +2,10 @@ package rw.nexera.nexguard.tracking
 
 import android.annotation.SuppressLint
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -43,9 +45,35 @@ class TrackingService : Service() {
         }
     }
 
+    /**
+     * Low battery: send the owner the last location before the phone dies (once per low-battery spell).
+     * SIM change: sync now, the heartbeat carries the new SIM fingerprint and the API alerts the owner.
+     * Android no longer delivers these to receivers declared in the manifest, so the running service listens.
+     */
+    private val systemEvents = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_BATTERY_LOW -> if (!lowBatteryReported) {
+                    lowBatteryReported = true
+                    EventWorker.report(applicationContext, Events.LOW_BATTERY)
+                }
+                Intent.ACTION_BATTERY_OKAY -> lowBatteryReported = false
+                ACTION_SIM_STATE_CHANGED -> SyncWorker.enqueue(applicationContext)
+            }
+        }
+    }
+    private var lowBatteryReported = false
+
     override fun onCreate() {
         super.onCreate()
         client = LocationServices.getFusedLocationProviderClient(this)
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_BATTERY_LOW)
+            addAction(Intent.ACTION_BATTERY_OKAY)
+            addAction(ACTION_SIM_STATE_CHANGED)
+        }
+        // System broadcasts still reach a not-exported receiver; other apps cannot fake them.
+        ContextCompat.registerReceiver(this, systemEvents, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -91,6 +119,7 @@ class TrackingService : Service() {
     }
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(systemEvents) }
         client.removeLocationUpdates(callback)
         scope.cancel()
         super.onDestroy()
@@ -101,6 +130,8 @@ class TrackingService : Service() {
     companion object {
         private const val TAG = "TrackingService"
         private const val EXTRA_LOST_MODE = "lost_mode"
+        // Not in the public SDK constants, but sent by every Android version we support.
+        private const val ACTION_SIM_STATE_CHANGED = "android.intent.action.SIM_STATE_CHANGED"
         private const val NORMAL_INTERVAL_MS = 5 * 60_000L
         private const val LOST_INTERVAL_MS = 60_000L
 

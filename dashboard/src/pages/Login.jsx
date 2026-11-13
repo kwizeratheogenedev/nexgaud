@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { requestCode, verifyCode } from '../api.js';
+import { useI18n } from '../i18n.jsx';
+import LanguagePicker from '../components/LanguagePicker.jsx';
 
 export default function Login({ onSignedIn }) {
+  const { t } = useI18n();
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [sentTo, setSentTo] = useState('');
@@ -40,12 +43,15 @@ export default function Login({ onSignedIn }) {
   return (
     <main className="login">
       <div className="card login-card">
-        <h1>NexGuard</h1>
-        <p className="lead">See where your phone is, ring it, or lock it.</p>
+        <div className="login-head">
+          <h1>NexGuard</h1>
+          <LanguagePicker />
+        </div>
+        <p className="lead">{t('login.lead')}</p>
 
         {step === 'phone' ? (
           <form onSubmit={submitPhone}>
-            <label htmlFor="phone">Phone number</label>
+            <label htmlFor="phone">{t('login.phone')}</label>
             <input
               id="phone"
               type="tel"
@@ -57,21 +63,21 @@ export default function Login({ onSignedIn }) {
               required
               autoFocus
             />
-            <p className="hint">Use the same number you signed in with on the NexGuard app.</p>
+            <p className="hint">{t('login.phoneHint')}</p>
             {error && <p className="error" role="alert">{error}</p>}
             <button type="submit" className="primary" disabled={busy || !phone.trim()}>
-              {busy ? 'Sending…' : 'Send code'}
+              {busy ? t('login.sending') : t('login.sendCode')}
             </button>
           </form>
         ) : (
           <form onSubmit={submitCode}>
             <p>
-              We sent a 6-digit code to <strong>{sentTo}</strong>.{' '}
+              {t('login.codeSentTo', { phone: sentTo })}{' '}
               <button type="button" className="link" onClick={() => { setStep('phone'); setCode(''); setError(''); }}>
-                Change number
+                {t('login.changeNumber')}
               </button>
             </p>
-            <label htmlFor="code">Code</label>
+            <label htmlFor="code">{t('login.code')}</label>
             <input
               id="code"
               inputMode="numeric"
@@ -83,14 +89,17 @@ export default function Login({ onSignedIn }) {
               required
               autoFocus
             />
-            <label htmlFor="name">Your name (only needed the first time)</label>
+            <label htmlFor="name">{t('login.name')}</label>
             <input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
             {error && <p className="error" role="alert">{error}</p>}
             <button type="submit" className="primary" disabled={busy || code.length !== 6}>
-              {busy ? 'Checking…' : 'Sign in'}
+              {busy ? t('login.checking') : t('login.signIn')}
             </button>
           </form>
         )}
+        <p className="legal-links">
+          <a href="/privacy.html">{t('privacy')}</a> · <a href="/terms.html">{t('terms')}</a>
+        </p>
       </div>
     </main>
   );

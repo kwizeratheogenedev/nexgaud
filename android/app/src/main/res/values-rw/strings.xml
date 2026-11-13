@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kinyarwanda. Must be reviewed by a native speaker before launch. -->
+<resources>
+    <string name="admin_label">Gufunga NexGuard uri kure</string>
+    <string name="admin_description">Bituma nyiri telefoni ashobora gufunga ecran yayo akoresheje dashboard ya NexGuard iyo yabuze.</string>
+    <string name="admin_add_explanation">Bituma nyiri telefoni ashobora gufunga iyi ecran akoresheje dashboard ya NexGuard iyo telefoni yabuze.</string>
+    <string name="admin_disable_warning">Nubihagarika, nyiri telefoni ntazongera gushobora kuyifunga ari kure, kandi azabimenyeshwa.</string>
+
+    <string name="channel_tracking">Uko uburinzi buhagaze</string>
+    <string name="channel_tracking_desc">Yerekana ko NexGuard isangiza nyirayo aho iyi telefoni iri.</string>
+    <string name="channel_alerts">Ubutumwa bwa nyiri telefoni</string>
+    <string name="channel_alerts_desc">Ubutumwa n\'inzogera byoherejwe biturutse kuri dashboard ya NexGuard.</string>
+    <string name="notif_tracking">NexGuard irinda iyi telefoni</string>
+    <string name="notif_tracking_lost">NexGuard: iyi telefoni yatangajwe ko yabuze</string>
+    <string name="notif_tracking_text">Aho iri hasangizwa konti ya NexGuard ya nyirayo.</string>
+    <string name="notif_alarm">Inzogera ya NexGuard</string>
+    <string name="notif_alarm_text">Nyiri iyi telefoni arayishakisha.</string>
+    <string name="notif_owner_message">Ubutumwa bwa nyiri iyi telefoni</string>
+    <string name="notif_call">Hamagara: %1$s</string>
+
+    <string name="lost_title">Iyi telefoni yabuze</string>
+    <string name="lost_default_message">Iyi telefoni yabuze. Nyamuneka hamagara nyirayo.</string>
+    <string name="lost_call_owner">Hamagara nyirayo</string>
+    <string name="lost_call_number">Hamagara nyirayo: %1$s</string>
+    <string name="lost_finder_note">Murakoze kudufasha. Nyirayo ashobora kubona aho iyi telefoni iri.</string>
+    <string name="lost_im_owner">Ni njye nyirayo</string>
+
+    <string name="battery_tip_transsion">Akenshi: fungura Phone Master (cyangwa Settings > Battery) > App launch cyangwa Power saving, ushake NexGuard, wemere Auto-launch, Secondary launch na Run in background. Hanyuma ufunge NexGuard ku rutonde rwa porogaramu uheruka gukoresha.</string>
+    <string name="battery_tip_samsung">Akenshi: Settings > Apps > NexGuard > Battery > Unrestricted. Urebe kandi ko NexGuard itari muri Sleeping apps.</string>
+    <string name="battery_tip_xiaomi">Akenshi: Settings > Apps > NexGuard > fungura Autostart, hanyuma Battery saver > No restrictions.</string>
+    <string name="battery_tip_huawei">Akenshi: Settings > Battery > App launch > NexGuard > Manage manually, hanyuma ufungure ibintu bitatu byose.</string>
+    <string name="battery_tip_oppo">Akenshi: Settings > Battery > NexGuard > Allow background activity, hanyuma ufungure Auto-launch.</string>
+    <string name="battery_tip_other">Akenshi: Settings > Apps > NexGuard > Battery > Unrestricted (cyangwa Don\'t optimise).</string>
+
+    <string name="pin_set_title">Hitamo PIN</string>
+    <string name="pin_set_body">Iyi PIN irakenewe kugira ngo uhagarike uburinzi kuri iyi telefoni. Uwayibye ntashobora guhagarika NexGuard atayifite.</string>
+    <string name="pin_new">PIN nshya (imibare 4 kugeza ku 8)</string>
+    <string name="pin_again">Yandike nanone</string>
+    <string name="pin_enter">PIN</string>
+    <string name="pin_too_short">Koresha imibare 4 kugeza ku 8.</string>
+    <string name="pin_mismatch">PIN zombi ntizihuye.</string>
+    <plurals name="pin_wrong">
+        <item quantity="one">PIN si yo. Usigaranye igerageza %1$d.</item>
+        <item quantity="other">PIN si yo. Usigaranye amagerageza %1$d.</item>
+    </plurals>
+    <plurals name="pin_locked">
+        <item quantity="one">Wagerageje inshuro nyinshi. Nyirayo yabimenyeshejwe. Ongera ugerageze nyuma y\'umunota %1$d.</item>
+        <item quantity="other">Wagerageje inshuro nyinshi. Nyirayo yabimenyeshejwe. Ongera ugerageze nyuma y\'iminota %1$d.</item>
+    </plurals>
+
+    <string name="ok">Yego</string>
+    <string name="save">Bika</string>
+    <string name="cancel">Reka</string>
+
+    <string name="error_code_invalid">Kode si yo. Reba SMS wongere ugerageze.</string>
+    <string name="error_code_expired">Igihe cya kode cyarangiye. Saba indi.</string>
+    <string name="error_too_many">Wagerageje inshuro nyinshi. Tegereza iminota mike wongere ugerageze.</string>
+    <string name="error_phone_invalid">Reba nimero ya telefoni wongere ugerageze.</string>
+    <string name="error_offline">Nta murongo uhuza na NexGuard. Reba interineti ya telefoni cyangwa Wi-Fi wongere ugerageze.</string>
+    <string name="error_generic">Hari ikibazo cyabaye. Ongera ugerageze.</string>
+
+    <string name="signin_lead">Rinda iyi telefoni. Niramuka ibuze, uzabona aho iri, uyivugize cyangwa uyifunge ukoresheje mudasobwa cyangwa indi telefoni.</string>
+    <string name="signin_phone">Nimero yawe ya telefoni</string>
+    <string name="signin_send_code">Ohereza kode</string>
+    <string name="signin_sending">Birimo koherezwa…</string>
+    <string name="signin_code_sent">Twohereje kode y\'imibare 6 kuri SMS kuri %1$s.</string>
+    <string name="signin_code">Kode</string>
+    <string name="signin_name">Izina ryawe (ubwa mbere gusa)</string>
+    <string name="signin_submit">Injira wongeremo iyi telefoni</string>
+    <string name="signin_checking">Turimo kugenzura…</string>
+    <string name="signin_change_number">Hindura nimero</string>
+    <string name="signin_disclosure">Nyuma yo gutunganya, aho iyi telefoni iri hazasangizwa konti yawe ya NexGuard. Igihe cyose hasangizwa, hagaragara itangazo kuri telefoni.</string>
+
+    <string name="setup_title">Tunganya uburinzi</string>
+    <string name="setup_intro">Uruhushya ruke rutuma NexGuard ikomeza gukora iyo porogaramu ifunze cyangwa ecran ifunze.</string>
+    <string name="setup_optional">%1$s (si ngombwa)</string>
+    <string name="setup_notifications">Amatangazo</string>
+    <string name="setup_notifications_body">NexGuard yerekana itangazo igihe irinda iyi telefoni, ikerekana n\'inzogera n\'ubutumwa uyoherereje.</string>
+    <string name="setup_notifications_action">Emera amatangazo</string>
+    <string name="setup_location">Aho iri</string>
+    <string name="setup_location_body">NexGuard ifata aho iyi telefoni iri ikahohereza kuri konti yawe ya NexGuard, kugira ngo ushobore kuyibona niramuka ibuze. Hitamo \"Precise\".</string>
+    <string name="setup_location_action">Emera aho iri</string>
+    <string name="setup_background">Aho iri igihe cyose</string>
+    <string name="setup_background_body">Kugira ngo ukomeze kubona telefoni iyo NexGuard ifunze cyangwa ecran ifunze, hitamo \"Allow all the time\" kuri ecran ikurikira. Aho uri hasangizwa konti yawe gusa.</string>
+    <string name="setup_background_action">Hitamo \"Allow all the time\"</string>
+    <string name="setup_background_warning">Utahisemo \"Allow all the time\", NexGuard ikora gusa iyo porogaramu ifunguye cyangwa itangazo ryayo rigaragara.</string>
+    <string name="setup_battery">Umuriro</string>
+    <string name="setup_battery_body">Telefoni nyinshi zihagarika porogaramu zikora inyuma kugira ngo zizigame umuriro. Reka NexGuard ikore nta kuyibuza. %1$s</string>
+    <string name="setup_battery_action">Fungura igenamiterere ry\'umuriro</string>
+    <string name="setup_app_settings">Fungura igenamiterere rya NexGuard</string>
+    <string name="setup_pin">PIN</string>
+    <string name="setup_pin_body">Hitamo PIN uzi wenyine. Irakenewe kugira ngo uhagarike uburinzi kuri iyi telefoni.</string>
+    <string name="setup_lock">Gufunga uri kure</string>
+    <string name="setup_lock_body">Bigufasha gufunga ecran y\'iyi telefoni ukoresheje dashboard. NexGuard ishobora gufunga ecran gusa; ntishobora gusoma cyangwa gusiba ikintu na kimwe.</string>
+    <string name="setup_lock_action">Fungura gufunga uri kure</string>
+    <string name="setup_start">Tangira kurinda iyi telefoni</string>
+
+    <string name="home_protected_title">Iyi telefoni irarinzwe</string>
+    <string name="home_protected_body">Aho iri hasangizwa konti yawe ya NexGuard hafi buri minota 5.</string>
+    <string name="home_lost_title">Iyi telefoni yatangajwe ko yabuze</string>
+    <string name="home_lost_body">Aho iri yoherezwa buri munota. Niba wayitoraguye, nyamuneka vugana na nyirayo.</string>
+    <string name="home_account">Konti: %1$s</string>
+    <string name="home_this_phone">Iyi telefoni: %1$s</string>
+    <string name="home_last_upload">Iheruka kohereza: %1$s</string>
+    <string name="home_not_yet">ntirohereza</string>
+    <string name="home_waiting">Aho iri hategereje koherezwa: %1$d</string>
+    <string name="home_warn_location">Aho iri ntibyemewe \"Allow all the time\".</string>
+    <string name="home_warn_battery">Kuzigama umuriro bishobora guhagarika NexGuard ikora inyuma.</string>
+    <string name="home_warn_notifications">Amatangazo arafunze, bityo inzogera n\'ubutumwa ntibishobora kugaragara.</string>
+    <string name="home_warn_pin">Nta PIN irashyirwaho: umuntu wese ufite iyi telefoni yashobora guhagarika uburinzi.</string>
+    <string name="home_fix_setup">Kosora igenamiterere</string>
+    <string name="home_send_now">Ohereza aho ndi ubu</string>
+    <string name="home_finding">Turimo gushaka aho iri…</string>
+    <string name="home_change_pin">Hindura PIN</string>
+    <string name="home_stop">Hagarika kurinda iyi telefoni</string>
+    <string name="home_stop_pin_title">Andika PIN yawe kugira ngo uhagarike uburinzi</string>
+    <string name="home_stop_title">Uhagarike uburinzi?</string>
+    <string name="home_stop_body">Iyi telefoni irahagarika gusangiza aho iri, kandi urabimenyeshwa. Kugira ngo uyikure kuri konti yawe, uyisibe no kuri dashboard ya NexGuard.</string>
+    <string name="home_stop_confirm">Hagarika</string>
+</resources>

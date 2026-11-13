@@ -8,19 +8,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import rw.nexera.nexguard.R
 import rw.nexera.nexguard.data.AppState
 import rw.nexera.nexguard.data.LocalDb
 import rw.nexera.nexguard.data.Prefs
+import rw.nexera.nexguard.tracking.Events
+import rw.nexera.nexguard.tracking.Notifications
 import rw.nexera.nexguard.tracking.Recorder
 import rw.nexera.nexguard.tracking.SyncWorker
 import rw.nexera.nexguard.tracking.TrackingService
 import rw.nexera.nexguard.tracking.WatchdogWorker
 import rw.nexera.nexguard.util.DeviceInfo
+
+private enum class Dialog { None, PinToStop, ConfirmStop, PinToChange, NewPin, SetFirstPin }
 
 @Composable
 fun HomeScreen(state: AppState) {
@@ -32,13 +38,15 @@ fun HomeScreen(state: AppState) {
     var tick by remember { mutableIntStateOf(0) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { tick++ }
     val permissions = remember(tick) { DeviceInfo.permissions(ctx) }
-    var confirmStop by remember { mutableStateOf(false) }
+    var dialog by remember { mutableStateOf(Dialog.None) }
     var sending by remember { mutableStateOf(false) }
+    var stopping by remember { mutableStateOf(false) }
 
     val warnings = buildList {
-        if (permissions.location != "always") add("Location is not set to \"Allow all the time\".")
-        if (permissions.batteryOptimized) add("Battery optimisation may stop NexGuard in the background.")
-        if (!permissions.notifications) add("Notifications are off, so alarms and messages cannot show.")
+        if (permissions.location != "always") add(stringResource(R.string.home_warn_location))
+        if (permissions.batteryOptimized) add(stringResource(R.string.home_warn_battery))
+        if (!permissions.notifications) add(stringResource(R.string.home_warn_notifications))
+        if (!state.pinSet) add(stringResource(R.string.home_warn_pin))
     }
 
     Column(
@@ -53,35 +61,35 @@ fun HomeScreen(state: AppState) {
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    if (state.lostMode) "This phone is reported lost" else "This phone is protected",
+                    stringResource(if (state.lostMode) R.string.home_lost_title else R.string.home_protected_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
-                Text(
-                    if (state.lostMode) {
-                        "Its location is sent every minute. If you found it, please contact the owner."
-                    } else {
-                        "Its location is shared with your NexGuard account about every 5 minutes."
-                    },
-                )
+                Text(stringResource(if (state.lostMode) R.string.home_lost_body else R.string.home_protected_body))
             }
         }
 
-        Text("Account: ${state.phone ?: "—"}")
-        Text("This phone: ${state.deviceName ?: DeviceInfo.defaultName}")
+        Text(stringResource(R.string.home_account, state.phone ?: "—"))
+        Text(stringResource(R.string.home_this_phone, state.deviceName ?: DeviceInfo.defaultName))
         Text(
-            "Last upload: " + if (state.lastUploadAt > 0) {
-                DateUtils.getRelativeTimeSpanString(state.lastUploadAt).toString()
-            } else {
-                "not yet"
-            },
+            stringResource(
+                R.string.home_last_upload,
+                if (state.lastUploadAt > 0) {
+                    DateUtils.getRelativeTimeSpanString(state.lastUploadAt).toString()
+                } else {
+                    stringResource(R.string.home_not_yet)
+                },
+            ),
         )
-        Text("Locations waiting to upload: $waiting")
+        Text(stringResource(R.string.home_waiting, waiting))
 
         if (warnings.isNotEmpty()) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     warnings.forEach { Text("• $it") }
-                    Button(onClick = { scope.launch { prefs.setSetupDone(false) } }) { Text("Fix setup") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!state.pinSet) Button(onClick = { dialog = Dialog.SetFirstPin }) { Text(stringResource(R.string.pin_set_title)) }
+                        Button(onClick = { scope.launch { prefs.setSetupDone(false) } }) { Text(stringResource(R.string.home_fix_setup)) }
+                    }
                 }
             }
         }
@@ -97,34 +105,51 @@ fun HomeScreen(state: AppState) {
             },
             enabled = !sending,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (sending) "Finding location…" else "Send my location now") }
+        ) { Text(stringResource(if (sending) R.string.home_finding else R.string.home_send_now)) }
 
-        // TODO(Phase 2): require the owner's PIN or fingerprint to stop protection.
-        TextButton(onClick = { confirmStop = true }) { Text("Stop protecting this phone") }
+        if (state.pinSet) {
+            TextButton(onClick = { dialog = Dialog.PinToChange }) { Text(stringResource(R.string.home_change_pin)) }
+        }
+        TextButton(
+            onClick = { dialog = if (state.pinSet) Dialog.PinToStop else Dialog.ConfirmStop },
+            enabled = !stopping,
+        ) { Text(stringResource(R.string.home_stop)) }
     }
 
-    if (confirmStop) {
-        AlertDialog(
-            onDismissRequest = { confirmStop = false },
-            title = { Text("Stop protection?") },
-            text = {
-                Text(
-                    "This phone stops sharing its location. To remove it from your account, " +
-                        "also delete it in the NexGuard dashboard.",
-                )
-            },
+    when (dialog) {
+        Dialog.None -> Unit
+        Dialog.PinToStop -> CheckPinDialog(
+            title = stringResource(R.string.home_stop_pin_title),
+            onOk = { dialog = Dialog.ConfirmStop },
+            onDismiss = { dialog = Dialog.None },
+        )
+        Dialog.PinToChange -> CheckPinDialog(
+            title = stringResource(R.string.home_change_pin),
+            onOk = { dialog = Dialog.NewPin },
+            onDismiss = { dialog = Dialog.None },
+        )
+        Dialog.NewPin, Dialog.SetFirstPin -> SetPinDialog(onDone = { dialog = Dialog.None }, onDismiss = { dialog = Dialog.None })
+        Dialog.ConfirmStop -> AlertDialog(
+            onDismissRequest = { dialog = Dialog.None },
+            title = { Text(stringResource(R.string.home_stop_title)) },
+            text = { Text(stringResource(R.string.home_stop_body)) },
             confirmButton = {
                 TextButton(onClick = {
-                    confirmStop = false
+                    dialog = Dialog.None
                     scope.launch {
+                        stopping = true
+                        // Tell the owner first, while the device token still exists.
+                        Events.sendNow(ctx, Events.PROTECTION_OFF)
                         TrackingService.stop(ctx)
                         WatchdogWorker.cancel(ctx)
+                        Notifications.cancelLost(ctx)
                         LocalDb.get(ctx).points().clear()
                         prefs.clearPairing()
+                        stopping = false
                     }
-                }) { Text("Stop") }
+                }) { Text(stringResource(R.string.home_stop_confirm)) }
             },
-            dismissButton = { TextButton(onClick = { confirmStop = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { dialog = Dialog.None }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

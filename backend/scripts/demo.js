@@ -38,6 +38,9 @@ await mongoose.connection.asPromise();
 
 const phone = normalizePhone(process.env.DEMO_PHONE ?? '0788000001');
 const owner = await User.create({ phone, name: 'Demo Owner' });
+// A NexGuard team member who can open the pilot statistics.
+const adminPhone = normalizePhone(process.env.DEMO_ADMIN_PHONE ?? '0788000009');
+await User.create({ phone: adminPhone, name: 'NexGuard Team', role: 'admin' });
 const deviceToken = randomToken();
 await Device.create({
   ownerId: owner._id,
@@ -109,10 +112,22 @@ async function tick() {
   }
 }
 
+async function heartbeat(simFingerprint) {
+  const res = await fetch(`${base}/heartbeat`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ battery: Math.round(battery), charging: false, network: 'cellular', simFingerprint }),
+  });
+  return res.json();
+}
+
 await tick();
+// A SIM swap a minute after start, so the dashboard has an alert to show.
+await heartbeat('demo-sim-mtn');
+setTimeout(() => heartbeat('demo-sim-other').then(() => logger.info('[demo phone] SIM card changed')), 60000);
 setInterval(tick, 15000);
 
-logger.info(`Demo ready. Sign in to the dashboard with ${phone} (code appears below as [dev SMS]).`);
+logger.info(`Demo ready. Sign in to the dashboard with ${phone}, or ${adminPhone} for the pilot statistics (codes appear below as [dev SMS]).`);
 
 const stop = async () => {
   await mongo.stop();

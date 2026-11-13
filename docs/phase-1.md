@@ -42,12 +42,6 @@
 - [ ] Real SMS through Africa's Talking (needs an account and sender ID)
 - [ ] Firebase push end to end
 
-## Left for Phase 2 (from the plan)
+## Moved to Phase 2
 
-- PIN or fingerprint to stop protection or uninstall
-- SIM-change alert to the owner (the fingerprint is already collected)
-- Last location saved when the battery is low
-- Encrypt the device token on the phone with the Android Keystore
-- Keep location history of devices marked lost beyond 30 days
-- Kinyarwanda and French translations
-- A paid or self-hosted map tile service (the free OpenStreetMap tiles are slow and not meant for production)
+Done in Phase 2 (see [phase-2.md](phase-2.md)): PIN to stop protection, SIM-change alert, last location on low battery, device token encrypted with the Android Keystore, longer history for lost devices, Kinyarwanda and French, configurable map tiles.

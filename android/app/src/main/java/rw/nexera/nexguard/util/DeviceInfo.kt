@@ -9,10 +9,12 @@ import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import rw.nexera.nexguard.BuildConfig
+import rw.nexera.nexguard.R
 import rw.nexera.nexguard.commands.AdminReceiver
 import rw.nexera.nexguard.data.HeartbeatBody
 import rw.nexera.nexguard.data.PermissionsDto
@@ -76,13 +78,17 @@ object DeviceInfo {
     }
 
     /**
-     * A hash of the SIM's operator and country, used in Phase 2 to alert the owner when a
-     * different SIM is inserted. Needs no permission and never sends the raw values.
+     * A one-way hash of the SIM's network, country and subscription ID, so the API can alert the owner
+     * when a different SIM is inserted (even one from the same network). "no-sim" when none is in.
+     * Needs no permission and never sends the phone number or the SIM's serial number.
      */
     private fun simFingerprint(ctx: Context): String? {
         val tm = ctx.getSystemService(TelephonyManager::class.java) ?: return null
-        if (tm.simState != TelephonyManager.SIM_STATE_READY) return "no-sim"
-        val raw = "${tm.simOperator}|${tm.simCountryIso}"
+        if (tm.simState == TelephonyManager.SIM_STATE_ABSENT) return "no-sim"
+        if (tm.simState != TelephonyManager.SIM_STATE_READY) return null // locked or loading: report nothing yet
+        // Android gives each SIM card a new subscription ID the first time it sees it.
+        val subscription = SubscriptionManager.getDefaultSubscriptionId()
+        val raw = "${tm.simOperator}|${tm.simCountryIso}|$subscription"
         return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }.take(32)
     }
 
@@ -102,18 +108,14 @@ object DeviceInfo {
      * software version, so these are starting points ("usually"), shown with a button that
      * opens the system battery settings.
      */
-    fun batteryTip(): String = when (Build.MANUFACTURER.lowercase()) {
-        "tecno", "infinix", "itel" ->
-            "Usually: open Phone Master (or Settings > Battery) > App launch or Power saving, find NexGuard, and allow Auto-launch, Secondary launch and Run in background. Then lock NexGuard in the recent-apps screen."
-        "samsung" ->
-            "Usually: Settings > Apps > NexGuard > Battery > Unrestricted. Also make sure NexGuard is not in Sleeping apps."
-        "xiaomi", "redmi", "poco" ->
-            "Usually: Settings > Apps > NexGuard > turn on Autostart, then Battery saver > No restrictions."
-        "huawei", "honor" ->
-            "Usually: Settings > Battery > App launch > NexGuard > Manage manually, and turn on all three switches."
-        "oppo", "realme", "oneplus", "vivo" ->
-            "Usually: Settings > Battery > NexGuard > Allow background activity, and turn on Auto-launch."
-        else ->
-            "Usually: Settings > Apps > NexGuard > Battery > Unrestricted (or Don't optimise)."
-    }
+    fun batteryTip(ctx: Context): String = ctx.getString(
+        when (Build.MANUFACTURER.lowercase()) {
+            "tecno", "infinix", "itel" -> R.string.battery_tip_transsion
+            "samsung" -> R.string.battery_tip_samsung
+            "xiaomi", "redmi", "poco" -> R.string.battery_tip_xiaomi
+            "huawei", "honor" -> R.string.battery_tip_huawei
+            "oppo", "realme", "oneplus", "vivo" -> R.string.battery_tip_oppo
+            else -> R.string.battery_tip_other
+        },
+    )
 }

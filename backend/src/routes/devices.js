@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { Device } from '../models/Device.js';
-import { Location } from '../models/Location.js';
+import { isLostStatus, Location, updateRetention } from '../models/Location.js';
+import { Alert } from '../models/Alert.js';
 import { Command, COMMAND_TYPES } from '../models/Command.js';
 import { hmac, randomToken } from '../lib/crypto.js';
 import { badRequest, notFound } from '../lib/errors.js';
@@ -73,13 +74,40 @@ router.patch(
       .object({
         name: z.string().trim().min(1).max(60).optional(),
         status: z.enum(['normal', 'lost', 'recovered']).optional(),
+        // Shown on the phone's screen while it is lost.
+        lostMessage: z.string().trim().max(200).optional(),
+        contactPhone: z
+          .string()
+          .trim()
+          .regex(/^\+?[0-9 ]{7,20}$/, 'Enter a phone number, digits only')
+          .optional()
+          .or(z.literal('')),
       })
       .refine((v) => Object.keys(v).length > 0, 'Nothing to change'),
   ),
   async (req, res) => {
     const device = await ownedDevice(req);
-    Object.assign(device, req.valid.body);
+    const { name, status, lostMessage, contactPhone } = req.valid.body;
+    const wasLost = isLostStatus(device.status);
+    if (name) device.name = name;
+    if (status) device.status = status;
+    const isLost = isLostStatus(device.status);
+
+    if (isLost) {
+      if (!wasLost) device.lostMode = { since: new Date() };
+      if (lostMessage !== undefined) device.set('lostMode.message', lostMessage || undefined);
+      if (contactPhone !== undefined) device.set('lostMode.contactPhone', contactPhone || undefined);
+    } else if (wasLost) {
+      device.lostMode = undefined;
+    }
     await device.save();
+
+    if (wasLost !== isLost) {
+      // Lost devices keep their history for a year; found ones go back to 30 days.
+      await updateRetention(device);
+      // Wake the phone so it switches to lost mode (or back) right away.
+      await wakeDevice(device);
+    }
     res.json({ device: device.toPublic() });
   },
 );
@@ -90,6 +118,7 @@ router.delete('/:id', idParams, async (req, res) => {
   await Promise.all([
     Location.deleteMany({ deviceId: device._id }),
     Command.deleteMany({ deviceId: device._id }),
+    Alert.deleteMany({ deviceId: device._id }),
     device.deleteOne(),
   ]);
   res.status(204).end();

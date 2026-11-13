@@ -1,5 +1,6 @@
 package rw.nexera.nexguard.ui
 
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,20 +11,29 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import rw.nexera.nexguard.BuildConfig
+import rw.nexera.nexguard.R
 import rw.nexera.nexguard.data.Api
 import rw.nexera.nexguard.data.ApiException
 import rw.nexera.nexguard.data.Prefs
 import rw.nexera.nexguard.util.DeviceInfo
 import java.io.IOException
 
-fun friendlyError(e: Exception): String = when (e) {
-    is ApiException -> e.message ?: "Something went wrong"
-    is IOException -> "No connection to NexGuard. Check your mobile data or Wi-Fi and try again."
-    else -> "Something went wrong. Try again."
+fun friendlyError(ctx: Context, e: Exception): String = when (e) {
+    // The API's own messages are in English; the common ones are translated here.
+    is ApiException -> when (e.code) {
+        "code_invalid" -> ctx.getString(R.string.error_code_invalid)
+        "code_expired" -> ctx.getString(R.string.error_code_expired)
+        "too_many_requests" -> ctx.getString(R.string.error_too_many)
+        "validation_failed" -> ctx.getString(R.string.error_phone_invalid)
+        else -> e.message ?: ctx.getString(R.string.error_generic)
+    }
+    is IOException -> ctx.getString(R.string.error_offline)
+    else -> ctx.getString(R.string.error_generic)
 }
 
 /** Sign in with an SMS code, then pair this phone with the account. */
@@ -47,7 +57,7 @@ fun SignInScreen() {
             try {
                 block()
             } catch (e: Exception) {
-                error = friendlyError(e)
+                error = friendlyError(ctx, e)
             } finally {
                 busy = false
             }
@@ -58,9 +68,9 @@ fun SignInScreen() {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("NexGuard", style = MaterialTheme.typography.headlineLarge)
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
         Text(
-            "Protect this phone. If it is lost, see where it is, ring it or lock it from any browser.",
+            stringResource(R.string.signin_lead),
             style = MaterialTheme.typography.bodyLarge,
         )
 
@@ -68,7 +78,7 @@ fun SignInScreen() {
             OutlinedTextField(
                 value = phone,
                 onValueChange = { phone = it },
-                label = { Text("Your phone number") },
+                label = { Text(stringResource(R.string.signin_phone)) },
                 placeholder = { Text("0788 123 456") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
@@ -78,13 +88,13 @@ fun SignInScreen() {
                 onClick = { submit { Api.requestCode(phone.trim()); step = "code" } },
                 enabled = !busy && phone.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (busy) "Sending…" else "Send code") }
+            ) { Text(stringResource(if (busy) R.string.signin_sending else R.string.signin_send_code)) }
         } else {
-            Text("We sent a 6-digit code by SMS to $phone.")
+            Text(stringResource(R.string.signin_code_sent, phone))
             OutlinedTextField(
                 value = code,
                 onValueChange = { v -> code = v.filter { it.isDigit() }.take(6) },
-                label = { Text("Code") },
+                label = { Text(stringResource(R.string.signin_code)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -92,7 +102,7 @@ fun SignInScreen() {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Your name (first time only)") },
+                label = { Text(stringResource(R.string.signin_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -115,15 +125,14 @@ fun SignInScreen() {
                 },
                 enabled = !busy && code.length == 6,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (busy) "Checking…" else "Sign in and add this phone") }
-            TextButton(onClick = { step = "phone"; code = ""; error = null }) { Text("Change number") }
+            ) { Text(stringResource(if (busy) R.string.signin_checking else R.string.signin_submit)) }
+            TextButton(onClick = { step = "phone"; code = ""; error = null }) { Text(stringResource(R.string.signin_change_number)) }
         }
 
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         Text(
-            "After setup, this phone's location is shared with your NexGuard account. " +
-                "A notification always shows while it is shared.",
+            stringResource(R.string.signin_disclosure),
             style = MaterialTheme.typography.bodySmall,
         )
     }

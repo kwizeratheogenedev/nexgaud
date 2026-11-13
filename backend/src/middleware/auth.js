@@ -1,7 +1,7 @@
 import { Device } from '../models/Device.js';
 import { User } from '../models/User.js';
 import { hmac } from '../lib/crypto.js';
-import { unauthorized } from '../lib/errors.js';
+import { forbidden, unauthorized } from '../lib/errors.js';
 import { verifyToken } from '../services/tokens.js';
 
 function bearer(req, scheme) {
@@ -20,7 +20,12 @@ export async function requireUser(req, _res, next) {
   next();
 }
 
-/** Phones: `Authorization: Device <device token>`. Sets req.device. */
+/** Use after requireUser: only these roles may continue. */
+export function requireRole(...roles) {
+  return (req, _res, next) => (roles.includes(req.user?.role) ? next() : next(forbidden()));
+}
+
+/** Phones:`Authorization: Device <device token>`. Sets req.device. */
 export async function requireDevice(req, _res, next) {
   const token = bearer(req, 'Device');
   if (!token) return next(unauthorized('Device token missing'));

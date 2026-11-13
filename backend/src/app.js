@@ -10,6 +10,8 @@ import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import devicesRouter from './routes/devices.js';
 import deviceApiRouter from './routes/deviceApi.js';
+import alertsRouter from './routes/alerts.js';
+import adminRouter from './routes/admin.js';
 import { tooMany } from './lib/errors.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
@@ -52,6 +54,8 @@ export function createApp() {
   api.use('/auth', authRouter);
   api.use('/devices', devicesRouter); // owners
   api.use('/device', deviceApiRouter); // the phone itself
+  api.use('/alerts', alertsRouter); // owners
+  api.use('/admin', adminRouter); // the NexGuard team
   app.use('/api/v1', api);
 
   app.use(notFound);

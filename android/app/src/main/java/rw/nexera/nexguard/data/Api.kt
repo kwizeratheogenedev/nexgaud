@@ -48,8 +48,24 @@ class ApiException(val status: Int, val code: String?, message: String) : Except
     val osVersion: String? = null,
     val permissions: PermissionsDto? = null,
 )
-@Serializable data class UploadResponse(val accepted: Int = 0, val rejected: Int = 0, val commands: List<CommandDto> = emptyList())
-@Serializable data class HeartbeatResponse(val status: String = "normal", val commands: List<CommandDto> = emptyList())
+/** What the owner wants shown on this phone's screen while it is marked lost. */
+@Serializable data class LostModeDto(val message: String? = null, val contactPhone: String? = null)
+@Serializable data class UploadResponse(
+    val accepted: Int = 0,
+    val rejected: Int = 0,
+    val status: String? = null,
+    val lostMode: LostModeDto? = null,
+    val commands: List<CommandDto> = emptyList(),
+)
+@Serializable data class HeartbeatResponse(
+    val status: String = "normal",
+    val lostMode: LostModeDto? = null,
+    val commands: List<CommandDto> = emptyList(),
+) {
+    val lost get() = status == "lost" || status == "stolen"
+}
+/** Something the owner should hear about: low_battery, protection_off, admin_off, pin_failed, shutdown. */
+@Serializable data class EventBody(val type: String, val battery: Int? = null, val location: PointDto? = null)
 
 @Serializable private data class ErrorDto(val error: String? = null, val message: String? = null)
 @Serializable private data class PhoneBody(val phone: String)
@@ -133,6 +149,10 @@ object Api {
     suspend fun heartbeat(deviceToken: String, body: HeartbeatBody): HeartbeatResponse {
         val text = send("POST", "/device/heartbeat", json.encodeToString(HeartbeatBody.serializer(), body), device(deviceToken))
         return json.decodeFromString(HeartbeatResponse.serializer(), text)
+    }
+
+    suspend fun event(deviceToken: String, body: EventBody) {
+        send("POST", "/device/events", json.encodeToString(EventBody.serializer(), body), device(deviceToken))
     }
 
     suspend fun ack(deviceToken: String, commandId: String, done: Boolean, result: String?) {

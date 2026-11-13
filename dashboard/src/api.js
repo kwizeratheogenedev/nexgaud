@@ -98,3 +98,8 @@ export const getRoute = (id, from, to) => {
 export const sendCommand = (id, type, payload) =>
   api(`/devices/${id}/commands`, { method: 'POST', body: { type, ...(payload ? { payload } : {}) } }).then((d) => d.command);
 export const listCommands = (id) => api(`/devices/${id}/commands`).then((d) => d.commands);
+
+export const updateMe = (changes) => api('/auth/me', { method: 'PATCH', body: changes }).then((d) => d.user);
+export const listAlerts = (deviceId) => api(`/alerts${deviceId ? `?deviceId=${deviceId}` : ''}`);
+export const markAlertsRead = (ids) => api('/alerts/read', { method: 'POST', body: ids ? { ids } : {} });
+export const getPilotStats = () => api('/admin/stats');

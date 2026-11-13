@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { Location } from '../models/Location.js';
+import { Location, locationExpiry } from '../models/Location.js';
 import { Command } from '../models/Command.js';
+import { PHONE_EVENT_TYPES } from '../models/Alert.js';
+import { raiseAlert } from '../services/alerts.js';
 import { notFound } from '../lib/errors.js';
 import { objectId, validate } from '../lib/validate.js';
 import { requireDevice } from '../middleware/auth.js';
@@ -37,45 +39,113 @@ const pointSchema = z.object({
   recordedAt: z.coerce.date(),
 });
 
+/** Stores points and moves the last known location forward. Returns how many were accepted. */
+async function storePoints(device, incoming) {
+  const now = Date.now();
+  const points = incoming.filter((p) => p.recordedAt.getTime() <= now + MAX_CLOCK_SKEW_MS);
+  if (!points.length) return 0;
+
+  const expiresAt = locationExpiry(device, now);
+  await Location.insertMany(
+    points.map((p) => ({
+      deviceId: device._id,
+      point: { type: 'Point', coordinates: [p.lng, p.lat] },
+      accuracyM: p.accuracyM,
+      source: p.source,
+      battery: p.battery,
+      recordedAt: p.recordedAt,
+      receivedAt: new Date(now),
+      expiresAt,
+    })),
+    { ordered: false },
+  );
+  const latest = points.reduce((a, b) => (b.recordedAt > a.recordedAt ? b : a));
+  if (!device.lastLocationAt || latest.recordedAt > device.lastLocationAt) {
+    device.lastLocation = { type: 'Point', coordinates: [latest.lng, latest.lat] };
+    device.lastLocationAt = latest.recordedAt;
+    device.lastAccuracyM = latest.accuracyM;
+    if (latest.battery != null) device.battery = latest.battery;
+  }
+  return points.length;
+}
+
+/** What every reply to the phone carries: its status, the lost-mode screen, and waiting commands. */
+async function phoneState(device) {
+  return {
+    status: device.status,
+    lostMode: device.lostModePublic(),
+    commands: await takePendingCommands(device),
+  };
+}
+
 // The phone uploads queued points in batches; the reply carries any commands waiting for it.
 router.post(
   '/locations',
   validate(z.object({ points: z.array(pointSchema).min(1).max(MAX_POINTS_PER_UPLOAD) })),
   async (req, res) => {
     const device = req.device;
-    const now = Date.now();
-    const points = req.valid.body.points.filter((p) => p.recordedAt.getTime() <= now + MAX_CLOCK_SKEW_MS);
-
-    if (points.length) {
-      await Location.insertMany(
-        points.map((p) => ({
-          deviceId: device._id,
-          point: { type: 'Point', coordinates: [p.lng, p.lat] },
-          accuracyM: p.accuracyM,
-          source: p.source,
-          battery: p.battery,
-          recordedAt: p.recordedAt,
-        })),
-        { ordered: false },
-      );
-      const latest = points.reduce((a, b) => (b.recordedAt > a.recordedAt ? b : a));
-      if (!device.lastLocationAt || latest.recordedAt > device.lastLocationAt) {
-        device.lastLocation = { type: 'Point', coordinates: [latest.lng, latest.lat] };
-        device.lastLocationAt = latest.recordedAt;
-        device.lastAccuracyM = latest.accuracyM;
-        if (latest.battery != null) device.battery = latest.battery;
-      }
-    }
-    device.lastSeenAt = new Date(now);
+    const accepted = await storePoints(device, req.valid.body.points);
+    device.lastSeenAt = new Date();
     await device.save();
 
     res.json({
-      accepted: points.length,
-      rejected: req.valid.body.points.length - points.length,
-      commands: await takePendingCommands(device),
+      accepted,
+      rejected: req.valid.body.points.length - accepted,
+      ...(await phoneState(device)),
     });
   },
 );
+
+// Something happened on the phone that the owner should hear about (low battery, protection
+// turned off, wrong PIN, switching off). The phone sends its last location with it when it can.
+router.post(
+  '/events',
+  validate(
+    z.object({
+      type: z.enum(PHONE_EVENT_TYPES),
+      battery: z.number().int().min(0).max(100).optional(),
+      location: pointSchema.optional(),
+    }),
+  ),
+  async (req, res) => {
+    const device = req.device;
+    const { type, battery, location } = req.valid.body;
+    if (location) await storePoints(device, [location]);
+    if (battery != null) device.battery = battery;
+    device.lastSeenAt = new Date();
+    await device.save();
+
+    const alert = await raiseAlert(device, type, {
+      battery,
+      location: location && {
+        lat: location.lat,
+        lng: location.lng,
+        accuracyM: location.accuracyM,
+        at: location.recordedAt,
+      },
+    });
+    res.status(201).json({ alert: alert.toPublic(), ...(await phoneState(device)) });
+  },
+);
+
+// The SIM fingerprint is a hash of the SIM's network and subscription; "no-sim" when none is inserted.
+const NO_SIM = 'no-sim';
+
+async function checkSim(device, fingerprint) {
+  const previous = device.simFingerprint;
+  if (fingerprint === undefined || fingerprint === previous) return;
+  device.simFingerprint = fingerprint;
+  // The first report only sets the baseline.
+  if (!previous) return;
+
+  const type = fingerprint === NO_SIM ? 'sim_removed' : 'sim_changed';
+  device.simChangedAt = new Date();
+  const loc = device.lastLocation?.coordinates;
+  await raiseAlert(device, type, {
+    battery: device.battery,
+    location: loc && { lat: loc[1], lng: loc[0], accuracyM: device.lastAccuracyM, at: device.lastLocationAt },
+  });
+}
 
 router.post(
   '/heartbeat',
@@ -100,21 +170,22 @@ router.post(
   ),
   async (req, res) => {
     const device = req.device;
-    const { permissions, ...rest } = req.valid.body;
+    const { permissions, simFingerprint, ...rest } = req.valid.body;
     for (const [key, value] of Object.entries(rest)) {
       if (value !== undefined) device[key] = value;
     }
     for (const [key, value] of Object.entries(permissions ?? {})) {
       device.set(`permissions.${key}`, value);
     }
+    await checkSim(device, simFingerprint);
     device.lastSeenAt = new Date();
     await device.save();
-    res.json({ status: device.status, commands: await takePendingCommands(device) });
+    res.json(await phoneState(device));
   },
 );
 
 router.get('/commands', async (req, res) => {
-  res.json({ commands: await takePendingCommands(req.device) });
+  res.json(await phoneState(req.device));
 });
 
 router.post(

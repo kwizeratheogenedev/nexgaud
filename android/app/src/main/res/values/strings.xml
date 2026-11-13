@@ -1,6 +1,132 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- English (default). French in values-fr, Kinyarwanda in values-rw. -->
 <resources>
-    <string name="app_name">NexGuard</string>
+    <string name="app_name" translatable="false">NexGuard</string>
+
+    <!-- Remote lock (device admin) -->
     <string name="admin_label">NexGuard remote lock</string>
     <string name="admin_description">Lets the owner lock this phone\'s screen from the NexGuard dashboard if it is lost.</string>
+    <string name="admin_add_explanation">Lets the owner lock this screen from the NexGuard dashboard if the phone is lost.</string>
+    <string name="admin_disable_warning">If you turn this off, the owner can no longer lock this phone remotely, and they will get an alert.</string>
+
+    <!-- Notifications -->
+    <string name="channel_tracking">Protection status</string>
+    <string name="channel_tracking_desc">Shows that NexGuard is sharing this phone\'s location with its owner.</string>
+    <string name="channel_alerts">Messages from the owner</string>
+    <string name="channel_alerts_desc">Messages and alarms sent from the NexGuard dashboard.</string>
+    <string name="notif_tracking">NexGuard is protecting this phone</string>
+    <string name="notif_tracking_lost">NexGuard: this phone is reported lost</string>
+    <string name="notif_tracking_text">Its location is shared with the owner\'s NexGuard account.</string>
+    <string name="notif_alarm">NexGuard alarm</string>
+    <string name="notif_alarm_text">The owner is looking for this phone.</string>
+    <string name="notif_owner_message">Message from this phone\'s owner</string>
+    <string name="notif_call">Call: %1$s</string>
+
+    <!-- Lost mode: what a finder sees -->
+    <string name="lost_title">This phone is lost</string>
+    <string name="lost_default_message">This phone is lost. Please call the owner.</string>
+    <string name="lost_call_owner">Call the owner</string>
+    <string name="lost_call_number">Call the owner: %1$s</string>
+    <string name="lost_finder_note">Thank you for helping. The owner can see where this phone is.</string>
+    <string name="lost_im_owner">I am the owner</string>
+
+    <!-- Battery tips per brand -->
+    <string name="battery_tip_transsion">Usually: open Phone Master (or Settings > Battery) > App launch or Power saving, find NexGuard, and allow Auto-launch, Secondary launch and Run in background. Then lock NexGuard in the recent-apps screen.</string>
+    <string name="battery_tip_samsung">Usually: Settings > Apps > NexGuard > Battery > Unrestricted. Also make sure NexGuard is not in Sleeping apps.</string>
+    <string name="battery_tip_xiaomi">Usually: Settings > Apps > NexGuard > turn on Autostart, then Battery saver > No restrictions.</string>
+    <string name="battery_tip_huawei">Usually: Settings > Battery > App launch > NexGuard > Manage manually, and turn on all three switches.</string>
+    <string name="battery_tip_oppo">Usually: Settings > Battery > NexGuard > Allow background activity, and turn on Auto-launch.</string>
+    <string name="battery_tip_other">Usually: Settings > Apps > NexGuard > Battery > Unrestricted (or Don\'t optimise).</string>
+
+    <!-- PIN -->
+    <string name="pin_set_title">Choose a PIN</string>
+    <string name="pin_set_body">You need this PIN to stop protection on this phone. Someone who steals the phone cannot turn NexGuard off without it.</string>
+    <string name="pin_new">New PIN (4 to 8 digits)</string>
+    <string name="pin_again">Type it again</string>
+    <string name="pin_enter">PIN</string>
+    <string name="pin_too_short">Use 4 to 8 digits.</string>
+    <string name="pin_mismatch">The two PINs are different.</string>
+    <plurals name="pin_wrong">
+        <item quantity="one">Wrong PIN. %1$d try left.</item>
+        <item quantity="other">Wrong PIN. %1$d tries left.</item>
+    </plurals>
+    <plurals name="pin_locked">
+        <item quantity="one">Too many wrong tries. The owner has been alerted. Try again in %1$d minute.</item>
+        <item quantity="other">Too many wrong tries. The owner has been alerted. Try again in %1$d minutes.</item>
+    </plurals>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Errors -->
+    <string name="error_code_invalid">Wrong code. Check the SMS and try again.</string>
+    <string name="error_code_expired">The code has expired. Ask for a new one.</string>
+    <string name="error_too_many">Too many tries. Wait a few minutes and try again.</string>
+    <string name="error_phone_invalid">Check the phone number and try again.</string>
+    <string name="error_offline">No connection to NexGuard. Check your mobile data or Wi-Fi and try again.</string>
+    <string name="error_generic">Something went wrong. Try again.</string>
+
+    <!-- Sign in -->
+    <string name="signin_lead">Protect this phone. If it is lost, see where it is, ring it or lock it from any browser.</string>
+    <string name="signin_phone">Your phone number</string>
+    <string name="signin_send_code">Send code</string>
+    <string name="signin_sending">Sending…</string>
+    <string name="signin_code_sent">We sent a 6-digit code by SMS to %1$s.</string>
+    <string name="signin_code">Code</string>
+    <string name="signin_name">Your name (first time only)</string>
+    <string name="signin_submit">Sign in and add this phone</string>
+    <string name="signin_checking">Checking…</string>
+    <string name="signin_change_number">Change number</string>
+    <string name="signin_disclosure">After setup, this phone\'s location is shared with your NexGuard account. A notification always shows while it is shared.</string>
+
+    <!-- Setup -->
+    <string name="setup_title">Set up protection</string>
+    <string name="setup_intro">A few permissions let NexGuard keep working when the app is closed or the screen is locked.</string>
+    <string name="setup_optional">%1$s (optional)</string>
+    <string name="setup_notifications">Notifications</string>
+    <string name="setup_notifications_body">NexGuard shows a notification while it protects this phone, and shows alarms and messages from you.</string>
+    <string name="setup_notifications_action">Allow notifications</string>
+    <string name="setup_location">Location</string>
+    <string name="setup_location_body">NexGuard collects this phone\'s location and sends it to your NexGuard account, so you can find the phone if it is lost. Choose \"Precise\".</string>
+    <string name="setup_location_action">Allow location</string>
+    <string name="setup_background">Location all the time</string>
+    <string name="setup_background_body">To keep finding the phone when NexGuard is closed or the screen is locked, choose \"Allow all the time\" on the next screen. Your location is only shared with your own account.</string>
+    <string name="setup_background_action">Choose \"Allow all the time\"</string>
+    <string name="setup_background_warning">Without \"Allow all the time\", NexGuard only works while the app is open or its notification is showing.</string>
+    <string name="setup_battery">Battery</string>
+    <string name="setup_battery_body">Many phones stop apps in the background to save battery. Let NexGuard run without restrictions. %1$s</string>
+    <string name="setup_battery_action">Open battery settings</string>
+    <string name="setup_app_settings">Open NexGuard\'s app settings</string>
+    <string name="setup_pin">PIN</string>
+    <string name="setup_pin_body">Choose a PIN that only you know. It is needed to stop protection on this phone.</string>
+    <string name="setup_lock">Remote lock</string>
+    <string name="setup_lock_body">Lets you lock this phone\'s screen from the dashboard. NexGuard can only lock the screen; it cannot read or erase anything.</string>
+    <string name="setup_lock_action">Turn on remote lock</string>
+    <string name="setup_start">Start protecting this phone</string>
+
+    <!-- Home -->
+    <string name="home_protected_title">This phone is protected</string>
+    <string name="home_protected_body">Its location is shared with your NexGuard account about every 5 minutes.</string>
+    <string name="home_lost_title">This phone is reported lost</string>
+    <string name="home_lost_body">Its location is sent every minute. If you found it, please contact the owner.</string>
+    <string name="home_account">Account: %1$s</string>
+    <string name="home_this_phone">This phone: %1$s</string>
+    <string name="home_last_upload">Last upload: %1$s</string>
+    <string name="home_not_yet">not yet</string>
+    <string name="home_waiting">Locations waiting to upload: %1$d</string>
+    <string name="home_warn_location">Location is not set to \"Allow all the time\".</string>
+    <string name="home_warn_battery">Battery optimisation may stop NexGuard in the background.</string>
+    <string name="home_warn_notifications">Notifications are off, so alarms and messages cannot show.</string>
+    <string name="home_warn_pin">No PIN yet: anyone holding this phone could stop protection.</string>
+    <string name="home_fix_setup">Fix setup</string>
+    <string name="home_send_now">Send my location now</string>
+    <string name="home_finding">Finding location…</string>
+    <string name="home_change_pin">Change PIN</string>
+    <string name="home_stop">Stop protecting this phone</string>
+    <string name="home_stop_pin_title">Type your PIN to stop protection</string>
+    <string name="home_stop_title">Stop protection?</string>
+    <string name="home_stop_body">This phone stops sharing its location, and you get an alert. To remove it from your account, also delete it in the NexGuard dashboard.</string>
+    <string name="home_stop_confirm">Stop</string>
 </resources>

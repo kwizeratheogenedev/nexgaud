@@ -19,6 +19,12 @@ const deviceSchema = new mongoose.Schema(
     osVersion: String,
     appVersion: String,
     status: { type: String, enum: ['normal', 'lost', 'stolen', 'recovered'], default: 'normal' },
+    // Shown on the phone's screen while it is marked lost, so an honest finder can return it.
+    lostMode: {
+      message: { type: String, maxlength: 200 },
+      contactPhone: { type: String, maxlength: 20 },
+      since: Date,
+    },
 
     // The phone authenticates with a long random token; only its HMAC is stored.
     tokenHash: { type: String, required: true, unique: true },
@@ -32,6 +38,7 @@ const deviceSchema = new mongoose.Schema(
     charging: Boolean,
     network: String,
     simFingerprint: String,
+    simChangedAt: Date,
     permissions: {
       location: String, // 'always' | 'while_in_use' | 'denied'
       notifications: Boolean,
@@ -43,6 +50,15 @@ const deviceSchema = new mongoose.Schema(
 );
 
 deviceSchema.index({ lastLocation: '2dsphere' });
+
+deviceSchema.methods.lostModePublic = function lostModePublic() {
+  if (!['lost', 'stolen'].includes(this.status) || !this.lostMode?.since) return null;
+  return {
+    message: this.lostMode.message ?? null,
+    contactPhone: this.lostMode.contactPhone ?? null,
+    since: this.lostMode.since,
+  };
+};
 
 deviceSchema.methods.toPublic = function toPublic() {
   const loc = this.lastLocation?.coordinates;
@@ -56,6 +72,8 @@ deviceSchema.methods.toPublic = function toPublic() {
     osVersion: this.osVersion ?? null,
     appVersion: this.appVersion ?? null,
     status: this.status,
+    lostMode: this.lostModePublic(),
+    simChangedAt: this.simChangedAt ?? null,
     lastLocation: loc ? { lat: loc[1], lng: loc[0], accuracyM: this.lastAccuracyM ?? null, at: this.lastLocationAt } : null,
     lastSeenAt: this.lastSeenAt ?? null,
     battery: this.battery ?? null,
