@@ -7,6 +7,9 @@ import { usePolling } from './usePolling.js';
 import Login from './pages/Login.jsx';
 import Devices from './pages/Devices.jsx';
 import PilotStats from './pages/PilotStats.jsx';
+import Registry from './pages/Registry.jsx';
+import PartnerPortal from './pages/PartnerPortal.jsx';
+import AdminRegistry from './pages/AdminRegistry.jsx';
 
 function HealthDot() {
   const { t } = useI18n();
@@ -28,7 +31,7 @@ function HealthDot() {
   return <span className={`dot dot-${state}`} title={label} aria-label={label} role="img" />;
 }
 
-function AlertsMenu({ alerts, unread, devices, onOpenDevice, onMarkAllRead }) {
+function AlertsMenu({ alerts, unread, devices, onOpenDevice, onOpenRegistry, onMarkAllRead }) {
   const { lang, t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -46,7 +49,8 @@ function AlertsMenu({ alerts, unread, devices, onOpenDevice, onMarkAllRead }) {
     };
   }, [open]);
 
-  const deviceName = (id) => devices.find((d) => d.id === id)?.name ?? t('devices.phone');
+  const deviceName = (a) =>
+    a.deviceId ? (devices.find((d) => d.id === a.deviceId)?.name ?? t('devices.phone')) : t('alerts.registered');
 
   return (
     <div className="alerts-menu" ref={ref}>
@@ -75,12 +79,15 @@ function AlertsMenu({ alerts, unread, devices, onOpenDevice, onMarkAllRead }) {
                 <li key={a.id} className={a.read ? '' : 'unread'}>
                   <button
                     onClick={() => {
-                      onOpenDevice(a.deviceId);
+                      if (a.deviceId) onOpenDevice(a.deviceId);
+                      else onOpenRegistry();
                       setOpen(false);
                     }}
                   >
-                    <strong>{deviceName(a.deviceId)}</strong>
-                    <span>{t(`alert.${a.type}`, { battery: a.battery ?? '?' })}</span>
+                    <strong>{deviceName(a)}</strong>
+                    <span>{t(`alert.${a.type}`, { battery: a.battery ?? '?', source: a.source ?? '' })}</span>
+                    {a.message && <q>{a.message}</q>}
+                    {a.contactPhone && <span>{t('alerts.callFinder', { phone: a.contactPhone })}</span>}
                     <small>
                       {timeAgo(a.createdAt, lang, t)}
                       {a.smsSent ? ` · ${t('alerts.smsSent')}` : ''}
@@ -116,8 +123,17 @@ export default function App() {
     [lang, setLang],
   );
 
+  // Signing out forgets the previous person's devices, selection and alerts.
+  const signedOut = useCallback(() => {
+    setUser(null);
+    setDevices(null);
+    setSelectedId(null);
+    setAlerts({ alerts: [], unread: 0 });
+    setView('devices');
+  }, []);
+
   useEffect(() => {
-    setSignedOutHandler(() => setUser(null));
+    setSignedOutHandler(signedOut);
     refreshSession().then(signedIn).catch(() => setUser(null));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -132,18 +148,28 @@ export default function App() {
   if (!user) return <Login onSignedIn={signedIn} />;
 
   const isAdmin = user.role === 'admin';
+  const isPartner = ['shop', 'police'].includes(user.role) && user.partnerId;
+  const tabs = [
+    ['devices', t('nav.devices')],
+    ['registry', t('nav.registry')],
+    ...(isPartner ? [['partner', t('nav.partner')]] : []),
+    ...(isAdmin ? [['pilot', t('nav.pilot')], ['registryAdmin', t('nav.registryAdmin')]] : []),
+  ];
+  const current = tabs.some(([key]) => key === view) ? view : 'devices';
 
   return (
     <div className="app">
       <header className="topbar">
         <strong className="brand">NexGuard</strong>
         <HealthDot />
-        {isAdmin && (
-          <nav className="tabs">
-            <button className={view === 'devices' ? 'active' : ''} onClick={() => setView('devices')}>{t('nav.devices')}</button>
-            <button className={view === 'pilot' ? 'active' : ''} onClick={() => setView('pilot')}>{t('nav.pilot')}</button>
-          </nav>
-        )}
+        <nav className="tabs">
+          {tabs.map(([key, label]) => (
+            <button key={key} className={current === key ? 'active' : ''} aria-current={current === key ? 'page' : undefined} onClick={() => setView(key)}>
+              {label}
+            </button>
+          ))}
+          <a className="tab-link" href="/check" target="_blank" rel="noreferrer">{t('nav.checkPhone')}</a>
+        </nav>
         <span className="spacer" />
         <AlertsMenu
           alerts={alerts.alerts}
@@ -153,6 +179,7 @@ export default function App() {
             setView('devices');
             setSelectedId(id);
           }}
+          onOpenRegistry={() => setView('registry')}
           onMarkAllRead={() => markAlertsRead().then(loadAlerts)}
         />
         <LanguagePicker onChange={(language) => updateMe({ language }).catch(() => {})} />
@@ -161,14 +188,20 @@ export default function App() {
           className="link"
           onClick={async () => {
             await signOut();
-            setUser(null);
+            signedOut();
           }}
         >
           {t('signOut')}
         </button>
       </header>
-      {view === 'pilot' && isAdmin ? (
+      {current === 'pilot' ? (
         <PilotStats />
+      ) : current === 'registryAdmin' ? (
+        <AdminRegistry />
+      ) : current === 'partner' ? (
+        <PartnerPortal />
+      ) : current === 'registry' ? (
+        <Registry devices={devices} />
       ) : (
         <Devices
           devices={devices}

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Device } from '../models/Device.js';
 import { isLostStatus, Location, updateRetention } from '../models/Location.js';
 import { Alert } from '../models/Alert.js';
+import { RegistryItem } from '../models/RegistryItem.js';
 import { Command, COMMAND_TYPES } from '../models/Command.js';
 import { hmac, randomToken } from '../lib/crypto.js';
 import { badRequest, notFound } from '../lib/errors.js';
@@ -119,6 +120,7 @@ router.delete('/:id', idParams, async (req, res) => {
     Location.deleteMany({ deviceId: device._id }),
     Command.deleteMany({ deviceId: device._id }),
     Alert.deleteMany({ deviceId: device._id }),
+    RegistryItem.updateMany({ deviceId: device._id }, { $unset: { deviceId: 1 } }),
     device.deleteOne(),
   ]);
   res.status(204).end();

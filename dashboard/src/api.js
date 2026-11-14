@@ -19,17 +19,20 @@ export class ApiError extends Error {
   }
 }
 
-async function raw(path, { method = 'GET', body, auth = true } = {}) {
+// file: a File or Blob sent as the raw body (proof photos). as: 'blob' to read a file back.
+async function raw(path, { method = 'GET', body, auth = true, file, as } = {}) {
   const headers = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (file) headers['Content-Type'] = file.type || 'application/octet-stream';
+  else if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
   const res = await fetch(BASE + path, {
     method,
     headers,
     credentials: 'include',
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: file ?? (body === undefined ? undefined : JSON.stringify(body)),
   });
-  const data = res.status === 204 ? null : await res.json().catch(() => null);
+  let data = null;
+  if (res.status !== 204) data = as === 'blob' && res.ok ? await res.blob() : await res.json().catch(() => null);
   return { res, data };
 }
 
@@ -103,3 +106,58 @@ export const updateMe = (changes) => api('/auth/me', { method: 'PATCH', body: ch
 export const listAlerts = (deviceId) => api(`/alerts${deviceId ? `?deviceId=${deviceId}` : ''}`);
 export const markAlertsRead = (ids) => api('/alerts/read', { method: 'POST', body: ids ? { ids } : {} });
 export const getPilotStats = () => api('/admin/stats');
+
+// Stolen-device registry (owners)
+export const listRegistry = () => api('/registry/items').then((d) => d.items);
+export const registerItem = (body) => api('/registry/items', { method: 'POST', body }).then((d) => d.item);
+export const updateItem = (id, body) => api(`/registry/items/${id}`, { method: 'PATCH', body }).then((d) => d.item);
+export const deleteItem = (id) => api(`/registry/items/${id}`, { method: 'DELETE' });
+export const uploadProof = (id, kind, file) =>
+  api(`/registry/items/${id}/proofs?kind=${kind}`, { method: 'POST', file }).then((d) => d.item);
+export const deleteProof = (id, proofId) => api(`/registry/items/${id}/proofs/${proofId}`, { method: 'DELETE' }).then((d) => d.item);
+export const getProof = (id, proofId) => api(`/registry/items/${id}/proofs/${proofId}`, { as: 'blob' });
+export const reportItem = (id, body) => api(`/registry/items/${id}/reports`, { method: 'POST', body }).then((d) => d.item);
+export const closeReport = (id, reason) => api(`/registry/items/${id}/reports/close`, { method: 'POST', body: { reason } }).then((d) => d.item);
+export const startTransfer = (id) => api(`/registry/items/${id}/transfer`, { method: 'POST' });
+export const cancelTransfer = (id) => api(`/registry/items/${id}/transfer`, { method: 'DELETE' });
+export const claimItem = (identifier, code) => api('/registry/claim', { method: 'POST', body: { identifier, code } }).then((d) => d.item);
+export const listDisputes = () => api('/registry/disputes').then((d) => d.disputes);
+export const openDispute = (body) => api('/registry/disputes', { method: 'POST', body }).then((d) => d.dispute);
+export const addEvidence = (id, file) => api(`/registry/disputes/${id}/evidence`, { method: 'POST', file }).then((d) => d.dispute);
+
+// Public check (no sign-in)
+export const checkPhone = (q) => api(`/check?q=${encodeURIComponent(q)}`, { auth: false });
+export const sendTip = (body) => api('/check/tip', { method: 'POST', body, auth: false });
+
+// Partner portal
+export const getPartner = () => api('/partner/me');
+export const partnerCheck = (items) => api('/partner/check', { method: 'POST', body: { items } });
+export const partnerChecks = () => api('/partner/checks');
+export const createApiKey = (name) => api('/partner/keys', { method: 'POST', body: { name } });
+export const revokeApiKey = (id) => api(`/partner/keys/${id}`, { method: 'DELETE' });
+
+// NexGuard team: registry admin
+export const adminRegistryStats = () => api('/admin/registry/stats');
+export const adminReports = (status = 'pending') => api(`/admin/registry/reports?status=${status}`).then((d) => d.reports);
+export const reviewReport = (id, body) => api(`/admin/registry/reports/${id}/review`, { method: 'POST', body });
+export const adminCloseReport = (id, body) => api(`/admin/registry/reports/${id}/close`, { method: 'POST', body });
+export const adminDisputes = (status = 'open') => api(`/admin/registry/disputes?status=${status}`).then((d) => d.disputes);
+export const resolveDispute = (id, body) => api(`/admin/registry/disputes/${id}/resolve`, { method: 'POST', body });
+export const adminUpload = (id) => api(`/admin/registry/uploads/${id}`, { as: 'blob' });
+export const adminSearchItems = (q) => api(`/admin/registry/items?q=${encodeURIComponent(q)}`).then((d) => d.items);
+export const adminPartners = () => api('/admin/partners').then((d) => d.partners);
+export const createPartner = (body) => api('/admin/partners', { method: 'POST', body }).then((d) => d.partner);
+export const updatePartner = (id, body) => api(`/admin/partners/${id}`, { method: 'PATCH', body }).then((d) => d.partner);
+export const addPartnerMember = (id, body) => api(`/admin/partners/${id}/members`, { method: 'POST', body }).then((d) => d.partner);
+export const removePartnerMember = (id, userId) => api(`/admin/partners/${id}/members/${userId}`, { method: 'DELETE' }).then((d) => d.partner);
+export const adminAudit = (params = {}) => {
+  const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v));
+  return api(`/admin/audit?${q}`).then((d) => d.entries);
+};
+
+/** Opens a downloaded file (a Blob) in a new tab. */
+export function openBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}

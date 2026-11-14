@@ -42,7 +42,7 @@ const owner = await User.create({ phone, name: 'Demo Owner' });
 const adminPhone = normalizePhone(process.env.DEMO_ADMIN_PHONE ?? '0788000009');
 await User.create({ phone: adminPhone, name: 'NexGuard Team', role: 'admin' });
 const deviceToken = randomToken();
-await Device.create({
+const demoDevice = await Device.create({
   ownerId: owner._id,
   name: 'Demo Tecno Spark',
   brand: 'TECNO',
@@ -52,6 +52,35 @@ await Device.create({
   tokenHash: hmac(deviceToken),
   permissions: { location: 'always', notifications: true, batteryOptimized: false, deviceAdmin: true },
 });
+
+// Stolen-device registry: a partner shop, registered phones, a report to review and a dispute.
+const { RegistryItem } = await import('../src/models/RegistryItem.js');
+const { TheftReport } = await import('../src/models/TheftReport.js');
+const { Dispute } = await import('../src/models/Dispute.js');
+const { Partner } = await import('../src/models/Partner.js');
+const { luhnValid } = await import('../src/lib/imei.js');
+const imei = (base14) => base14 + [...'0123456789'].find((d) => luhnValid(base14 + d));
+const DEMO_IMEIS = { tracked: imei('35693803564380'), stolen: imei('86754203112233'), pending: imei('35281209876543') };
+
+const shop = await Partner.create({ name: 'Kigali Phones (demo)', type: 'shop', district: 'Nyarugenge' });
+const shopPhone = normalizePhone('0788000005');
+await User.create({ phone: shopPhone, name: 'Shop Clerk', role: 'shop', partnerId: shop._id });
+const neighbour = await User.create({ phone: normalizePhone('0788000002'), name: 'Demo Neighbour' });
+const admin = await User.findOne({ phone: adminPhone });
+
+await RegistryItem.create({ ownerId: owner._id, brand: 'TECNO', model: 'Spark 20', imeis: [DEMO_IMEIS.tracked], deviceId: demoDevice._id });
+const stolenItem = await RegistryItem.create({ ownerId: owner._id, brand: 'Samsung', model: 'Galaxy A15', color: 'Black', imeis: [DEMO_IMEIS.stolen], status: 'stolen' });
+await TheftReport.create({
+  itemId: stolenItem._id, ownerId: owner._id, type: 'stolen', incidentAt: new Date(Date.now() - 3 * 86400000),
+  place: 'Nyabugogo bus park', policeCaseNumber: 'RIB/2026/0042', policeStation: 'Nyarugenge', status: 'approved',
+  reviewedBy: admin._id, reviewedAt: new Date(Date.now() - 2 * 86400000),
+});
+const pendingItem = await RegistryItem.create({ ownerId: neighbour._id, brand: 'Infinix', model: 'Hot 40', imeis: [DEMO_IMEIS.pending] });
+await TheftReport.create({
+  itemId: pendingItem._id, ownerId: neighbour._id, type: 'stolen', incidentAt: new Date(Date.now() - 86400000),
+  place: 'Kimironko market', description: 'Taken from my bag while shopping.', policeCaseNumber: 'RIB/2026/0107', policeStation: 'Remera',
+});
+await Dispute.create({ itemId: stolenItem._id, raisedBy: neighbour._id, reason: 'report', message: 'I bought this phone second-hand last month and now it shows as stolen.' });
 
 // A loop through central Kigali: city centre → Nyabugogo road → Kimihurura → back.
 const PATH = [
@@ -127,7 +156,8 @@ await heartbeat('demo-sim-mtn');
 setTimeout(() => heartbeat('demo-sim-other').then(() => logger.info('[demo phone] SIM card changed')), 60000);
 setInterval(tick, 15000);
 
-logger.info(`Demo ready. Sign in to the dashboard with ${phone}, or ${adminPhone} for the pilot statistics (codes appear below as [dev SMS]).`);
+logger.info(`Demo ready. Sign in to the dashboard with ${phone}, ${adminPhone} (NexGuard team) or ${shopPhone} (partner shop). Codes appear below as [dev SMS].`);
+logger.info(`Registry: IMEI ${DEMO_IMEIS.stolen} is reported stolen, ${DEMO_IMEIS.tracked} is registered, ${DEMO_IMEIS.pending} has a report waiting for review. Public check: http://localhost:5173/check`);
 
 const stop = async () => {
   await mongo.stop();

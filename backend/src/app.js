@@ -12,6 +12,11 @@ import devicesRouter from './routes/devices.js';
 import deviceApiRouter from './routes/deviceApi.js';
 import alertsRouter from './routes/alerts.js';
 import adminRouter from './routes/admin.js';
+import registryRouter from './routes/registry.js';
+import checkRouter from './routes/check.js';
+import gatewayRouter from './routes/gateway.js';
+import partnerRouter from './routes/partner.js';
+import adminRegistryRouter from './routes/adminRegistry.js';
 import { tooMany } from './lib/errors.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
@@ -29,7 +34,8 @@ export function createApp() {
       logger,
       // One short line per request: no headers (they can carry tokens) and no stack for expected 4xx/503s.
       serializers: {
-        req: (req) => ({ method: req.method, url: req.url }),
+        // The gateway secret (?key=) and checked IMEIs (?q=) stay out of the logs.
+        req: (req) => ({ method: req.method, url: req.url.replace(/([?&](?:key|q)=)[^&]*/g, '$1[redacted]') }),
         res: (res) => ({ statusCode: res.statusCode }),
       },
       customLogLevel: (_req, res, err) => (err || res.statusCode >= 500 ? 'warn' : 'info'),
@@ -56,6 +62,11 @@ export function createApp() {
   api.use('/device', deviceApiRouter); // the phone itself
   api.use('/alerts', alertsRouter); // owners
   api.use('/admin', adminRouter); // the NexGuard team
+  api.use('/admin', adminRegistryRouter); // the NexGuard team: registry reviews, partners, audit log
+  api.use('/registry', registryRouter); // owners: registered IMEIs, reports, disputes
+  api.use('/check', checkRouter); // anyone: is this phone reported stolen?
+  api.use('/gateway', gatewayRouter); // USSD and SMS callbacks from Africa's Talking
+  api.use('/partner', partnerRouter); // partner shops and police: portal and API
   app.use('/api/v1', api);
 
   app.use(notFound);

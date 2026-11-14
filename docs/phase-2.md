@@ -63,6 +63,8 @@
 
 ## Next: Phase 3 (weeks 13–18), stolen-device registry
 
+Built: see [phase-3.md](phase-3.md).
+
 Gate: 5 partner shops check phones every week.
 
 1. IMEI and serial registration with proof upload (box or receipt photo)

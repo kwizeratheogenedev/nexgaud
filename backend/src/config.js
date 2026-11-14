@@ -26,6 +26,13 @@ const schema = z.object({
 
   // Base64 of the Firebase service-account JSON. Without it, phones pick up commands when they next upload.
   FIREBASE_SERVICE_ACCOUNT_B64: z.string().optional(),
+
+  // Shared secret in the USSD and SMS callback URLs (?key=...). Without it the gateway routes are off in production.
+  GATEWAY_SECRET: z.string().min(16).optional(),
+  // The USSD code people dial, shown in SMS replies and on the check page (for example *123#).
+  USSD_CODE: z.string().max(20).optional(),
+  // Where the public check page lives, used in SMS replies.
+  PUBLIC_CHECK_URL: z.string().url().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -59,4 +66,5 @@ export const config = {
   corsOrigins: env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
   isProd,
   isTest: env.NODE_ENV === 'test',
+  gatewaySecret: env.GATEWAY_SECRET ?? (isProd ? null : 'dev-gateway-secret-change-me'),
 };

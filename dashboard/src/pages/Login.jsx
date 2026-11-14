@@ -97,6 +97,7 @@ export default function Login({ onSignedIn }) {
             </button>
           </form>
         )}
+        <a className="check-link" href="/check">{t('check.title')} →</a>
         <p className="legal-links">
           <a href="/privacy.html">{t('privacy')}</a> · <a href="/terms.html">{t('terms')}</a>
         </p>

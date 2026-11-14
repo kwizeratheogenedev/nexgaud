@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState } from 'react';
+import * as registryTexts from './i18n-registry.js';
 
 // Dashboard texts in English, French and Kinyarwanda.
 // The French and Kinyarwanda texts need a review by native speakers before launch.
@@ -320,6 +321,11 @@ export const LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
 ];
+// Registry, check page and partner portal texts live in their own file.
+Object.assign(en, registryTexts.en);
+Object.assign(fr, registryTexts.fr);
+Object.assign(rw, registryTexts.rw);
+
 const DICTS = { en, fr, rw };
 const STORAGE_KEY = 'nexguard.lang';
 
