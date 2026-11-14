@@ -4,9 +4,11 @@ import { Device } from '../models/Device.js';
 import { isLostStatus, Location, updateRetention } from '../models/Location.js';
 import { Alert } from '../models/Alert.js';
 import { RegistryItem } from '../models/RegistryItem.js';
+import { User } from '../models/User.js';
+import { orgSeats } from '../services/plans.js';
 import { Command, COMMAND_TYPES } from '../models/Command.js';
 import { hmac, randomToken } from '../lib/crypto.js';
-import { badRequest, notFound } from '../lib/errors.js';
+import { badRequest, forbidden, HttpError, notFound } from '../lib/errors.js';
 import { objectId, validate } from '../lib/validate.js';
 import { requireUser } from '../middleware/auth.js';
 import { wakeDevice } from '../services/push.js';
@@ -23,8 +25,9 @@ export const MAX_DEVICES_PER_USER = 10;
 const MAX_HISTORY_DAYS = 7;
 
 // Personal devices, plus the laptops of organisations the user manages.
-async function ownedDevice(req) {
-  const device = await Device.findOne({ _id: req.valid.params.id, ...(await scopeFor(req.user)) });
+// view: true also allows phones shared by family members (to see, ring, locate and show a message).
+async function ownedDevice(req, { view = false } = {}) {
+  const device = await Device.findOne({ _id: req.valid.params.id, ...(await scopeFor(req.user, { family: view })) });
   if (!device) throw notFound('Device');
   return device;
 }
@@ -63,6 +66,14 @@ router.post(
   },
 );
 
+/** Organisations add laptops beyond the free ones only with paid seats (laptops already added keep working). */
+export async function checkOrgSeats(orgId) {
+  const [seats, count] = await Promise.all([orgSeats(orgId), Device.countDocuments({ orgId })]);
+  if (count >= seats.limit) {
+    throw new HttpError(402, 'seats_needed', `This organisation has ${count} of ${seats.limit} laptops. Buy more seats in Plans and billing.`);
+  }
+}
+
 // Laptops have no browser sign-in: the owner makes a one-time code here and types it into the agent.
 router.post(
   '/pairing-codes',
@@ -81,6 +92,7 @@ router.post(
       if ((await Device.countDocuments({ orgId })) >= MAX_ORG_DEVICES) {
         throw badRequest('device_limit', `An organisation can have up to ${MAX_ORG_DEVICES} devices`);
       }
+      await checkOrgSeats(orgId);
     } else if ((await Device.countDocuments({ ownerId: req.user._id, orgId: null })) >= MAX_DEVICES_PER_USER) {
       throw badRequest('device_limit', `You can add up to ${MAX_DEVICES_PER_USER} devices`);
     }
@@ -92,12 +104,19 @@ router.post(
 );
 
 router.get('/', async (req, res) => {
-  const devices = await Device.find(await scopeFor(req.user)).sort({ createdAt: 1 });
-  res.json({ devices: devices.map((d) => d.toPublic()) });
+  const devices = await Device.find(await scopeFor(req.user, { family: true })).sort({ createdAt: 1 });
+  // Phones shared by family members carry their owner's name.
+  const others = devices.filter((d) => !d.orgId && String(d.ownerId) !== req.user.id);
+  const owners = others.length ? await User.find({ _id: { $in: others.map((d) => d.ownerId) } }).select('name phone') : [];
+  const ownerName = (d) => {
+    const u = owners.find((o) => o.id === String(d.ownerId));
+    return u ? (u.name ?? u.phone) : null;
+  };
+  res.json({ devices: devices.map((d) => ({ ...d.toPublic(), sharedBy: others.includes(d) ? ownerName(d) : null })) });
 });
 
 router.get('/:id', idParams, async (req, res) => {
-  res.json({ device: (await ownedDevice(req)).toPublic() });
+  res.json({ device: (await ownedDevice(req, { view: true })).toPublic() });
 });
 
 router.patch(
@@ -108,6 +127,7 @@ router.patch(
       .object({
         name: z.string().trim().min(1).max(60).optional(),
         assignedTo: z.string().trim().max(60).optional(),
+        familyShared: z.boolean().optional(),
         status: z.enum(['normal', 'lost', 'recovered']).optional(),
         // Shown on the phone's screen while it is lost.
         lostMessage: z.string().trim().max(200).optional(),
@@ -122,7 +142,11 @@ router.patch(
   ),
   async (req, res) => {
     const device = await ownedDevice(req);
-    const { name, assignedTo, status, lostMessage, contactPhone } = req.valid.body;
+    const { name, assignedTo, familyShared, status, lostMessage, contactPhone } = req.valid.body;
+    if (familyShared !== undefined) {
+      if (device.orgId) throw badRequest('org_device', 'Organisation laptops are shared with the organisation');
+      device.familyShared = familyShared;
+    }
     const wasLost = isLostStatus(device.status);
     if (name) device.name = name;
     if (assignedTo !== undefined) device.assignedTo = assignedTo || undefined;
@@ -173,7 +197,7 @@ router.get(
     'query',
   ),
   async (req, res) => {
-    const device = await ownedDevice(req);
+    const device = await ownedDevice(req, { view: true });
     const to = req.valid.query.to ?? new Date();
     const from = req.valid.query.from ?? new Date(to.getTime() - 24 * 3600 * 1000);
     if (from > to) throw badRequest('bad_range', '"from" must be before "to"');
@@ -215,8 +239,11 @@ router.post(
     }),
   ),
   async (req, res) => {
-    const device = await ownedDevice(req);
+    const device = await ownedDevice(req, { view: true });
     const { type, payload } = req.valid.body;
+    // Family members may ring, locate and show a message; only the owner (or organisation) locks.
+    const sharedWithMe = !device.orgId && String(device.ownerId) !== req.user.id;
+    if (sharedWithMe && type === 'lock') throw forbidden('Only the owner can lock this phone');
     if (type === 'message' && !payload.message) throw badRequest('message_required', 'Write the message to show');
 
     // A newer command of the same type replaces one still waiting.
@@ -232,7 +259,7 @@ router.post(
 );
 
 router.get('/:id/commands', idParams, async (req, res) => {
-  const device = await ownedDevice(req);
+  const device = await ownedDevice(req, { view: true });
   await expireOld(device._id);
   const commands = await Command.find({ deviceId: device._id }).sort({ createdAt: -1 }).limit(20);
   res.json({ commands: commands.map((c) => c.toPublic()) });

@@ -199,3 +199,22 @@ export const setOrgStatus = (id, status) => api(`/admin/orgs/${id}`, { method: '
 
 /** The API address a laptop agent should use (shown in the pairing steps). */
 export const apiBaseForAgents = () => new URL(BASE, window.location.origin).href;
+
+// Plans and billing
+export const billingMe = () => api('/billing/me');
+export const checkout = (body) => api('/billing/checkout', { method: 'POST', body }).then((d) => d.invoice);
+export const listInvoices = () => api('/billing/invoices').then((d) => d.invoices);
+export const getInvoice = (id) => api(`/billing/invoices/${id}`);
+export const payInvoice = (id, provider, phone) => api(`/billing/invoices/${id}/pay`, { method: 'POST', body: { provider, phone } }).then((d) => d.payment);
+export const getPayment = (id) => api(`/billing/payments/${id}`);
+export const voidInvoice = (id) => api(`/billing/invoices/${id}/void`, { method: 'POST' }).then((d) => d.invoice);
+
+// Family sharing
+export const getFamily = () => api('/family').then((d) => d.family);
+export const createFamily = (name) => api('/family', { method: 'POST', body: name ? { name } : {} }).then((d) => d.family);
+export const addFamilyMember = (phone) => api('/family/members', { method: 'POST', body: { phone } }).then((d) => d.family);
+export const removeFamilyMember = (userId) => api(`/family/members/${userId}`, { method: 'DELETE' }).then((d) => d.family);
+export const deleteFamily = () => api('/family', { method: 'DELETE' });
+
+// NexGuard team: billing
+export const adminBillingStats = () => api('/admin/billing/stats');

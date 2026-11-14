@@ -21,6 +21,10 @@ import adminTagsRouter from './routes/adminTags.js';
 import devicePairRouter from './routes/devicePair.js';
 import tagsRouter from './routes/tags.js';
 import orgsRouter from './routes/orgs.js';
+import billingRouter from './routes/billing.js';
+import familyRouter from './routes/family.js';
+import adminBillingRouter from './routes/adminBilling.js';
+import { metricsMiddleware, metricsRoute } from './lib/metrics.js';
 import { tooMany } from './lib/errors.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
@@ -33,6 +37,7 @@ export function createApp() {
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
+  app.use(metricsMiddleware);
   app.use(
     pinoHttp({
       logger,
@@ -74,8 +79,12 @@ export function createApp() {
   api.use('/gateway', gatewayRouter); // USSD and SMS callbacks from Africa's Talking
   api.use('/partner', partnerRouter);
   api.use('/tags', tagsRouter); // QR tags: /tags/public for finders, the rest for owners
-  api.use('/orgs', orgsRouter); // schools and companies // partner shops and police: portal and API
+  api.use('/orgs', orgsRouter); // schools and companies
+  api.use('/billing', billingRouter); // plans, invoices, mobile money payments
+  api.use('/family', familyRouter); // family sharing (Family plan)
+  api.use('/admin', adminBillingRouter); // the NexGuard team: revenue and the Phase 5 gate // partner shops and police: portal and API
   app.use('/api/v1', api);
+  app.get('/metrics', metricsRoute); // Prometheus, outside /api/v1 like most exporters
 
   app.use(notFound);
   app.use(errorHandler);

@@ -313,3 +313,27 @@ input.narrow { width: 90px; flex: none; }
   .sticker-sheet { grid-template-columns: repeat(4, 1fr); gap: 4mm; padding: 0; max-width: none; }
   .sticker { height: 40mm; }
 }
+
+/* Plans, billing and payments */
+.plan-card .actions select { flex: 1; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 3000; background: rgba(0, 0, 0, 0.55); display: grid; place-items: center; padding: 16px; overflow: auto; }
+.modal { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
+.big-total { font-size: 1.8rem; font-weight: 700; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.waiting::after { content: ''; display: inline-block; width: 10px; height: 10px; margin-left: 8px; border-radius: 50%; border: 2px solid var(--accent); border-right-color: transparent; animation: spin 0.8s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .waiting::after { animation: none; } }
+.badge-invoice-paid { color: var(--ok); border-color: var(--ok); }
+.badge-invoice-open { color: var(--warn); border-color: var(--warn); }
+.badge-invoice-void { color: var(--muted); }
+.invoice-sheet { width: min(720px, 100%); }
+.invoice-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 12px 0; }
+.invoice-brand { font-size: 1.4rem; }
+.invoice-meta { text-align: right; }
+.invoice-meta h2 { margin: 0; }
+.total-row td { font-weight: 700; border-bottom: none; }
+@media print {
+  body.printing-invoice #root { display: none; }
+  body.printing-invoice .modal-backdrop { position: static; background: #fff; padding: 0; display: block; }
+  body.printing-invoice .modal { box-shadow: none; border: none; max-height: none; color: #000; background: #fff; width: 100%; }
+  body.printing-invoice .no-print { display: none; }
+}

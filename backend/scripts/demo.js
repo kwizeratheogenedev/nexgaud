@@ -99,6 +99,16 @@ await TagThread.create({
 const batch = await TagBatch.create({ name: 'Kigali Phones, demo pack', count: 6, createdBy: admin._id });
 await Tag.insertMany(Array.from({ length: 6 }, () => ({ code: randomCode(8), claimCode: randomCode(6), batchId: batch._id, status: 'unclaimed' })));
 
+// Family sharing: the owner's family includes the neighbour, who shares a phone. It shows up for the
+// owner once they buy the Family plan (use "Test payment" on the Plans & billing page).
+const { Family } = await import('../src/models/Family.js');
+await Family.create({ ownerId: owner._id, name: 'Demo family', members: [{ userId: neighbour._id }] });
+await Device.create({
+  ownerId: neighbour._id, name: 'Neighbour phone', brand: 'itel', model: 'A70', osVersion: '13', familyShared: true,
+  tokenHash: hmac(randomToken()), lastSeenAt: new Date(), battery: 64,
+  lastLocation: { type: 'Point', coordinates: [30.1044, -1.9536] }, lastLocationAt: new Date(), lastAccuracyM: 25,
+});
+
 // A loop through central Kigali: city centre → Nyabugogo road → Kimihurura → back.
 const PATH = [
   [-1.9441, 30.0619], [-1.9468, 30.0587], [-1.9496, 30.0551], [-1.9530, 30.0602],
@@ -175,6 +185,7 @@ setInterval(tick, 15000);
 
 logger.info(`Demo ready. Sign in to the dashboard with ${phone}, ${adminPhone} (NexGuard team) or ${shopPhone} (partner shop). Codes appear below as [dev SMS].`);
 logger.info(`Tags: the finder page of the "House keys" tag is http://localhost:5173/t/${keys.code}. ${owner.name} also manages "${school.name}"; add a laptop there with the agent in agent/.`);
+logger.info('Plans: buy the Family plan with "Test payment" on Plans & billing to see the phone the neighbour shares. A number ending in 13 is declined, 99 never answers.');
 logger.info(`Registry: IMEI ${DEMO_IMEIS.stolen} is reported stolen, ${DEMO_IMEIS.tracked} is registered, ${DEMO_IMEIS.pending} has a report waiting for review. Public check: http://localhost:5173/check`);
 
 const stop = async () => {

@@ -15,6 +15,10 @@ const deviceSchema = new mongoose.Schema(
     orgId: { type: mongoose.Schema.Types.ObjectId, ref: 'Org', index: true },
     assignedTo: { type: String, trim: true, maxlength: 60 }, // e.g. "Computer lab, seat 12"
     hostname: { type: String, maxlength: 80 },
+    // Family plan: the owner shares this device with their family (they can see, ring and locate it).
+    familyShared: { type: Boolean, default: false },
+    // Days of location history kept (30 unless the owner's plan gives more).
+    historyDays: Number,
     name: { type: String, required: true, trim: true, maxlength: 60 },
     type: { type: String, enum: ['phone', 'laptop', 'tag'], default: 'phone' },
     platform: { type: String, enum: ['android', 'ios', 'windows', 'macos', 'linux'], default: 'android' },
@@ -71,7 +75,10 @@ deviceSchema.methods.toPublic = function toPublic() {
     name: this.name,
     type: this.type,
     platform: this.platform,
+    ownerId: String(this.ownerId),
     orgId: this.orgId ? String(this.orgId) : null,
+    familyShared: this.familyShared ?? false,
+    historyDays: this.historyDays ?? 30,
     assignedTo: this.assignedTo ?? null,
     hostname: this.hostname ?? null,
     brand: this.brand ?? null,

@@ -13,6 +13,8 @@ import AdminRegistry from './pages/AdminRegistry.jsx';
 import Tags from './pages/Tags.jsx';
 import OrgPage from './pages/OrgPage.jsx';
 import TagsAdmin from './pages/TagsAdmin.jsx';
+import Billing from './pages/Billing.jsx';
+import BillingAdmin from './pages/BillingAdmin.jsx';
 
 function HealthDot() {
   const { t } = useI18n();
@@ -160,8 +162,9 @@ export default function App() {
     ['registry', t('nav.registry')],
     ['tags', t('nav.tags')],
     ['org', t('nav.org')],
+    ['billing', t('nav.billing')],
     ...(isPartner ? [['partner', t('nav.partner')]] : []),
-    ...(isAdmin ? [['pilot', t('nav.pilot')], ['registryAdmin', t('nav.registryAdmin')], ['tagsAdmin', t('nav.tagsAdmin')]] : []),
+    ...(isAdmin ? [['pilot', t('nav.pilot')], ['registryAdmin', t('nav.registryAdmin')], ['tagsAdmin', t('nav.tagsAdmin')], ['billingAdmin', t('nav.billingAdmin')]] : []),
   ];
   const current = tabs.some(([key]) => key === view) ? view : 'devices';
 
@@ -209,6 +212,10 @@ export default function App() {
         <AdminRegistry />
       ) : current === 'partner' ? (
         <PartnerPortal />
+      ) : current === 'billingAdmin' ? (
+        <BillingAdmin />
+      ) : current === 'billing' ? (
+        <Billing user={user} />
       ) : current === 'tagsAdmin' ? (
         <TagsAdmin />
       ) : current === 'tags' ? (

@@ -2,6 +2,8 @@ import { createApp } from './app.js';
 import { config } from './config.js';
 import { connectDb, disconnectDb } from './db.js';
 import { logger } from './logger.js';
+import { startBillingJobs } from './services/billing.js';
+import { expireLapsedPlans } from './services/plans.js';
 
 const app = createApp();
 const server = app.listen(config.PORT, () => {
@@ -10,8 +12,12 @@ const server = app.listen(config.PORT, () => {
 
 connectDb();
 
+// Checks pending mobile money payments and ends lapsed plans (not in tests: they call these directly).
+const stopBillingJobs = config.isTest ? () => {} : startBillingJobs({ expireLapsedPlans });
+
 function shutdown(signal) {
   logger.info(`${signal} received, shutting down`);
+  stopBillingJobs();
   server.close(async () => {
     await disconnectDb();
     process.exit(0);

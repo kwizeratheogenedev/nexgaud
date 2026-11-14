@@ -6,7 +6,7 @@
 2. **Stolen-device registry**: register an IMEI or serial number, report it stolen, and let anyone check it before buying.
 3. **QR lost-and-found tags**: a finder scans a sticker and messages the owner.
 
-Status: Phase 4 (QR tags, laptop agent, organisations) is built; the agent has been tried for real only on Windows. See [docs/phase-4.md](docs/phase-4.md), [docs/phase-3.md](docs/phase-3.md) for the stolen-device registry, [docs/phase-2.md](docs/phase-2.md) for the pilot work (still waiting for tests on real phones), and [docs/phase-1.md](docs/phase-1.md) for the tracker basics.
+Status: Phase 5 (plans, mobile money payments, family sharing, monitoring) is built; payments have been tested against MTN and Airtel imitations only, until merchant accounts are opened. See [docs/phase-5.md](docs/phase-5.md) and [docs/operations.md](docs/operations.md). Earlier phases: [tags and laptops](docs/phase-4.md), [stolen-device registry](docs/phase-3.md), [pilot](docs/phase-2.md), [tracker](docs/phase-1.md).
 
 > Android package name: `rw.nexera.nexguard`. It cannot change after the first Google Play release.
 
@@ -39,7 +39,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and sign in with `0788000001`. The sign-in code is printed in the first terminal as `[dev SMS]`. Try **Ring**, **Locate now** or **Lock**: the simulated phone answers within 15 seconds. A minute after start the simulated phone gets a new SIM card, so an alert appears (and its SMS is printed). Sign in with `0788000009` instead to see the **Pilot statistics** and **Registry admin** tabs, or with `0788000005` for a partner shop's **Check phones** tab. The public check page is at http://localhost:5173/check (no sign-in); the first terminal prints a stolen IMEI to try, and the finder page of a demo QR tag. The demo owner also manages a demo school (**Organisation** tab).
+Open http://localhost:5173 and sign in with `0788000001`. The sign-in code is printed in the first terminal as `[dev SMS]`. Try **Ring**, **Locate now** or **Lock**: the simulated phone answers within 15 seconds. A minute after start the simulated phone gets a new SIM card, so an alert appears (and its SMS is printed). Sign in with `0788000009` instead to see the **Pilot statistics** and **Registry admin** tabs, or with `0788000005` for a partner shop's **Check phones** tab. The public check page is at http://localhost:5173/check (no sign-in); the first terminal prints a stolen IMEI to try, and the finder page of a demo QR tag. The demo owner also manages a demo school (**Organisation** tab), and can buy the Family plan with **Test payment** on **Plans & billing** to see a phone the neighbour shares.
 
 ## Run it for real
 
@@ -65,6 +65,8 @@ Edit `.env` first; every setting is explained there. In development, sign-in cod
 
 **QR tags:** set `PUBLIC_APP_URL` (in `backend/.env`) to the dashboard's real address before printing any tags. The web server must serve `index.html` for `/t/...`.
 
+**Payments:** MTN MoMo and Airtel Money turn on when their keys are set in `backend/.env` (see the Phase 5 section of `.env.example`). Monitoring, backups and the load test: [docs/operations.md](docs/operations.md).
+
 **Partner shops and police:** an admin adds them in **Registry admin → Partners**, with each member's phone number. Members sign in with that number and get the **Check phones** tab.
 
 **USSD and SMS checks:** set `GATEWAY_SECRET` and point Africa's Talking at `/api/v1/gateway/ussd?key=...` and `/api/v1/gateway/sms?key=...` (see `backend/.env.example`). In production the web server must serve `index.html` for `/check`.
@@ -87,10 +89,13 @@ Edit `.env` first; every setting is explained there. In development, sign-in cod
 | Owner, registry | `GET/POST /registry/items`, `PATCH/DELETE /registry/items/:id`, `POST /registry/items/:id/proofs?kind=` (raw image or PDF body), `GET/DELETE /registry/items/:id/proofs/:proofId`, `POST /registry/items/:id/reports`, `POST /registry/items/:id/reports/close`, `POST/DELETE /registry/items/:id/transfer`, `POST /registry/claim`, `GET/POST /registry/disputes`, `POST /registry/disputes/:id/evidence` |
 | Everyone, no sign-in | `GET /check?q=`, `POST /check/tip`, `GET /tags/public/:code`, `POST /tags/public/:code/threads`, `GET /tags/public/threads/:token`, `POST /tags/public/threads/:token/messages` |
 | Owner, tags and organisations | `POST /devices/pairing-codes`, `GET/POST /tags`, `POST /tags/claim`, `PATCH/DELETE /tags/:id`, `GET /tags/threads/all`, `POST /tags/threads/:id/read`, `POST /tags/threads/:id/reply`, `POST /tags/threads/:id/close`, `GET/POST /orgs`, `PATCH /orgs/:id`, `POST /orgs/:id/members`, `DELETE /orgs/:id/members/:userId` |
+| Owner, plans | `GET /billing/me`, `POST /billing/checkout`, `GET /billing/invoices`, `GET /billing/invoices/:id`, `POST /billing/invoices/:id/pay`, `POST /billing/invoices/:id/void`, `GET /billing/payments/:id`, `GET/POST/DELETE /family`, `POST /family/members`, `DELETE /family/members/:userId` |
+| MTN / Airtel (`?key=PAYMENT_CALLBACK_SECRET`) | `POST /billing/callbacks/:provider` |
+| Monitoring (`Bearer METRICS_TOKEN`) | `GET /metrics` (outside `/api/v1`) |
 | Laptop agent | `POST /device/pair` (pairing code), then the same `Device` token routes as the phone |
 | Africa's Talking (`?key=GATEWAY_SECRET`) | `POST /gateway/ussd`, `POST /gateway/sms` |
 | Partner (portal `Bearer` token, or `ApiKey`) | `GET /partner/me`, `GET /partner/check?q=`, `POST /partner/check` (up to 100), `GET /partner/checks`, `POST /partner/keys`, `DELETE /partner/keys/:id` (keys: portal only) |
-| Admin (`Bearer` token, admin role) | `GET /admin/stats`, `GET /admin/registry/stats`, `GET /admin/registry/reports`, `POST /admin/registry/reports/:id/review`, `POST /admin/registry/reports/:id/close`, `GET /admin/registry/disputes`, `POST /admin/registry/disputes/:id/resolve`, `GET /admin/registry/uploads/:id`, `GET /admin/registry/items?q=`, `GET/POST /admin/partners`, `PATCH /admin/partners/:id`, `POST /admin/partners/:id/members`, `DELETE /admin/partners/:id/members/:userId`, `GET /admin/audit`, `GET /admin/phase4/stats`, `GET/POST /admin/tag-batches`, `GET /admin/tag-batches/:id/tags`, `GET /admin/orgs`, `PATCH /admin/orgs/:id` |
+| Admin (`Bearer` token, admin role) | `GET /admin/stats`, `GET /admin/registry/stats`, `GET /admin/registry/reports`, `POST /admin/registry/reports/:id/review`, `POST /admin/registry/reports/:id/close`, `GET /admin/registry/disputes`, `POST /admin/registry/disputes/:id/resolve`, `GET /admin/registry/uploads/:id`, `GET /admin/registry/items?q=`, `GET/POST /admin/partners`, `PATCH /admin/partners/:id`, `POST /admin/partners/:id/members`, `DELETE /admin/partners/:id/members/:userId`, `GET /admin/audit`, `GET /admin/phase4/stats`, `GET/POST /admin/tag-batches`, `GET /admin/tag-batches/:id/tags`, `GET /admin/orgs`, `PATCH /admin/orgs/:id`, `GET /admin/billing/stats` |
 
 ## Tests
 

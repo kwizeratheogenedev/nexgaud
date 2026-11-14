@@ -26,7 +26,8 @@ locationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const isLostStatus = (status) => ['lost', 'stolen'].includes(status);
 
-const retentionDays = (device) => (isLostStatus(device.status) ? LOST_RETENTION_DAYS : LOCATION_RETENTION_DAYS);
+// Lost devices keep a year; otherwise what the owner's plan gives (30 days, or 90 with the Family plan).
+const retentionDays = (device) => (isLostStatus(device.status) ? LOST_RETENTION_DAYS : (device.historyDays ?? LOCATION_RETENTION_DAYS));
 
 /** When a point received now for this device should be deleted. */
 export function locationExpiry(device, from = Date.now()) {

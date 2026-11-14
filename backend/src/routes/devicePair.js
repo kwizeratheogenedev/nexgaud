@@ -10,6 +10,7 @@ import { badRequest, tooMany } from '../lib/errors.js';
 import { normalizeCode } from '../lib/codes.js';
 import { validate } from '../lib/validate.js';
 import { audit } from '../services/audit.js';
+import { checkOrgSeats } from './devices.js';
 
 /**
  * POST /device/pair: the laptop agent swaps a one-time pairing code for its device token.
@@ -53,6 +54,8 @@ router.post(
 
     const org = pairing.orgId ? await Org.findById(pairing.orgId) : null;
     if (pairing.orgId && org?.status !== 'active') throw badRequest('pairing_invalid', 'This organisation is not active');
+    // Several codes may have been made before the seats ran out.
+    if (pairing.orgId) await checkOrgSeats(pairing.orgId);
 
     const deviceToken = randomToken();
     const device = await Device.create({

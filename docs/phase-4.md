@@ -64,6 +64,8 @@ On this Windows 11 computer, the real agent (dry-run mode, settings in a scratch
 
 ## Next: Phase 5 (week 25 onward), payments and scale
 
+Built: see [phase-5.md](phase-5.md).
+
 Gate: paying customers cover server costs.
 
 1. MTN MoMo and Airtel Money payments, then cards

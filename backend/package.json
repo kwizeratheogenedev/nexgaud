@@ -14,7 +14,8 @@
     "demo": "node scripts/demo.js",
     "make-admin": "node scripts/make-admin.js",
     "test": "node --import ./tests/setup.js --test \"tests/**/*.test.js\"",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "loadtest": "node scripts/loadtest.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

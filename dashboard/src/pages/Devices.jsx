@@ -21,6 +21,7 @@ function DeviceListItem({ device, selected, onSelect }) {
             {online ? t('devices.online') : t('devices.lastSeenAgo', { time: timeAgo(device.lastSeenAt, lang, t) })}
             {device.battery != null && ` · ${device.battery}%`}
             {device.type === 'laptop' && ` · ${device.assignedTo ?? t('devices.laptop')}`}
+            {device.sharedBy && ` · ${t('devices.sharedBy', { name: device.sharedBy })}`}
           </small>
         </span>
         {isLost(device) && <span className="badge badge-lost">{t('devices.lostBadge')}</span>}
@@ -57,7 +58,7 @@ function CommandPanel({ device, commands, onSend, busy }) {
       <div className="actions">
         <button onClick={() => onSend('ring')} disabled={busy}>{t('actions.ring')}</button>
         <button onClick={() => onSend('locate')} disabled={busy}>{t('actions.locate')}</button>
-        <button onClick={() => onSend('lock')} disabled={busy || (device.type !== 'laptop' && device.permissions?.deviceAdmin === false)}>
+        <button onClick={() => onSend('lock')} disabled={busy || Boolean(device.sharedBy) || (device.type !== 'laptop' && device.permissions?.deviceAdmin === false)}>
           {t('actions.lock')}
         </button>
       </div>
@@ -329,6 +330,13 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
                 : [selected.brand, selected.model].filter(Boolean).join(' ') || t('devices.phone')}
             </p>
             {selected.assignedTo && <p className="hint">{t('devices.assignedTo')}: {selected.assignedTo}</p>}
+            {selected.sharedBy && <p className="hint">{t('devices.sharedBy', { name: selected.sharedBy })}</p>}
+            {!selected.sharedBy && !selected.orgId && (
+              <label className="inline check-row-label">
+                <input type="checkbox" checked={selected.familyShared} disabled={busy} onChange={(e) => saveDevice({ familyShared: e.target.checked })} />
+                {t('devices.shareFamily')}
+              </label>
+            )}
             <dl>
               <dt>{t('devices.lastLocation')}</dt>
               <dd>
@@ -355,13 +363,15 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
             {error && <p className="error" role="alert">{error}</p>}
           </div>
 
-          <LostPanel key={selected.id} device={selected} onSave={saveDevice} busy={busy} />
+          {!selected.sharedBy && <LostPanel key={selected.id} device={selected} onSave={saveDevice} busy={busy} />}
           <DeviceAlerts alerts={deviceAlerts} />
           <CommandPanel device={selected} commands={commands} onSend={send} busy={busy} />
 
-          <div className="panel-section">
-            <button className="link danger-link" onClick={remove}>{t('devices.remove')}</button>
-          </div>
+          {!selected.sharedBy && (
+            <div className="panel-section">
+              <button className="link danger-link" onClick={remove}>{t('devices.remove')}</button>
+            </div>
+          )}
         </aside>
       )}
     </div>

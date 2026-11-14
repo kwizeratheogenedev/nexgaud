@@ -35,6 +35,34 @@ const schema = z.object({
   PUBLIC_CHECK_URL: z.string().url().optional(),
   // The dashboard's public address: QR tags link to <PUBLIC_APP_URL>/t/<code>, and SMS to finders link there.
   PUBLIC_APP_URL: z.string().url().default('http://localhost:5173'),
+  // The API's public address, for payment callbacks (MTN and Airtel call it when a payment finishes).
+  PUBLIC_API_URL: z.string().url().optional(),
+
+  // ---- Plans and payments. Prices in Rwandan francs: placeholders until the team decides. ----
+  PRICE_FAMILY_MONTHLY_RWF: z.coerce.number().int().min(0).default(2000),
+  PRICE_LAPTOP_SEAT_MONTHLY_RWF: z.coerce.number().int().min(0).default(1000),
+  // Organisations get this many laptops without paying.
+  ORG_FREE_LAPTOPS: z.coerce.number().int().min(0).default(5),
+  // What the servers cost per month, for the Phase 5 gate (paying customers cover server costs).
+  SERVER_COST_MONTHLY_RWF: z.coerce.number().int().min(0).default(0),
+  // Shared secret in the payment callback URLs (?key=...).
+  PAYMENT_CALLBACK_SECRET: z.string().min(16).optional(),
+  // MTN MoMo Collection API (momodeveloper.mtn.com). Sandbox by default.
+  MOMO_BASE_URL: z.string().url().default('https://sandbox.momodeveloper.mtn.com'),
+  MOMO_TARGET_ENV: z.string().default('sandbox'), // mtnrwanda in production
+  MOMO_CURRENCY: z.string().length(3).default('EUR'), // the sandbox only accepts EUR; RWF in production
+  MOMO_SUBSCRIPTION_KEY: z.string().optional(),
+  MOMO_API_USER: z.string().optional(),
+  MOMO_API_KEY: z.string().optional(),
+  // Airtel Money Collection API (developers.airtel.africa). UAT (test) by default.
+  AIRTEL_BASE_URL: z.string().url().default('https://openapiuat.airtel.africa'),
+  AIRTEL_CLIENT_ID: z.string().optional(),
+  AIRTEL_CLIENT_SECRET: z.string().optional(),
+  AIRTEL_COUNTRY: z.string().length(2).default('RW'),
+  AIRTEL_CURRENCY: z.string().length(3).default('RWF'),
+
+  // Bearer token for GET /metrics (Prometheus format). Without it, /metrics is off in production.
+  METRICS_TOKEN: z.string().min(16).optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -69,4 +97,6 @@ export const config = {
   isProd,
   isTest: env.NODE_ENV === 'test',
   gatewaySecret: env.GATEWAY_SECRET ?? (isProd ? null : 'dev-gateway-secret-change-me'),
+  paymentCallbackSecret: env.PAYMENT_CALLBACK_SECRET ?? (isProd ? null : 'dev-payment-secret-change-me'),
+  metricsToken: env.METRICS_TOKEN ?? null,
 };
