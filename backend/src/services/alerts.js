@@ -3,6 +3,7 @@ import { User } from '../models/User.js';
 import { logger } from '../logger.js';
 import { maskPhone } from '../lib/phone.js';
 import { sendSms } from './sms.js';
+import { recipientsFor } from './access.js';
 
 // The same alert type for the same device sends at most one SMS per hour (SMS costs money).
 const SMS_COOLDOWN_MS = 60 * 60 * 1000;
@@ -55,27 +56,32 @@ export function alertText(type, language, deviceName, battery) {
 export async function raiseAlert(device, type, { battery, location } = {}) {
   const lost = ['lost', 'stolen'].includes(device.status);
   const wantsSms = ALWAYS_SMS.has(type) || (lost && SMS_WHEN_LOST.has(type));
+  // Organisation laptops alert every manager of the organisation.
+  const recipients = await recipientsFor(device);
 
-  let smsSent = false;
+  let smsAllowed = false;
   if (wantsSms) {
-    const recent = await Alert.exists({
+    smsAllowed = !(await Alert.exists({
       deviceId: device._id,
       type,
       smsSent: true,
       createdAt: { $gte: new Date(Date.now() - SMS_COOLDOWN_MS) },
-    });
-    if (!recent) {
-      const owner = await User.findById(device.ownerId);
-      if (owner) {
-        try {
-          await sendSms(owner.phone, alertText(type, owner.language, device.name, battery));
-          smsSent = true;
-        } catch (err) {
-          logger.warn({ err: err.message, to: maskPhone(owner.phone), type }, 'Alert SMS failed');
-        }
-      }
-    }
+    }));
   }
 
-  return Alert.create({ ownerId: device.ownerId, deviceId: device._id, type, battery, location, smsSent });
+  const alerts = [];
+  for (const ownerId of recipients) {
+    let smsSent = false;
+    const owner = smsAllowed ? await User.findById(ownerId) : null;
+    if (owner) {
+      try {
+        await sendSms(owner.phone, alertText(type, owner.language, device.name, battery));
+        smsSent = true;
+      } catch (err) {
+        logger.warn({ err: err.message, to: maskPhone(owner.phone), type }, 'Alert SMS failed');
+      }
+    }
+    alerts.push(await Alert.create({ ownerId, deviceId: device._id, type, battery, location, smsSent }));
+  }
+  return alerts[0] ?? new Alert({ ownerId: device.ownerId, deviceId: device._id, type, battery, location });
 }

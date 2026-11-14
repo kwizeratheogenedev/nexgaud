@@ -11,6 +11,10 @@ const pointSchema = new mongoose.Schema(
 const deviceSchema = new mongoose.Schema(
   {
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    // Organisation laptops: managed by every manager of the organisation, not only the person who enrolled them.
+    orgId: { type: mongoose.Schema.Types.ObjectId, ref: 'Org', index: true },
+    assignedTo: { type: String, trim: true, maxlength: 60 }, // e.g. "Computer lab, seat 12"
+    hostname: { type: String, maxlength: 80 },
     name: { type: String, required: true, trim: true, maxlength: 60 },
     type: { type: String, enum: ['phone', 'laptop', 'tag'], default: 'phone' },
     platform: { type: String, enum: ['android', 'ios', 'windows', 'macos', 'linux'], default: 'android' },
@@ -67,6 +71,9 @@ deviceSchema.methods.toPublic = function toPublic() {
     name: this.name,
     type: this.type,
     platform: this.platform,
+    orgId: this.orgId ? String(this.orgId) : null,
+    assignedTo: this.assignedTo ?? null,
+    hostname: this.hostname ?? null,
     brand: this.brand ?? null,
     model: this.model ?? null,
     osVersion: this.osVersion ?? null,

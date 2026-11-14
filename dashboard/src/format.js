@@ -23,3 +23,6 @@ export const isOnline = (device) =>
   device.lastSeenAt && Date.now() - new Date(device.lastSeenAt).getTime() < OFFLINE_AFTER_MS;
 
 export const isLost = (device) => ['lost', 'stolen'].includes(device?.status);
+
+/** 2345ABCD → 2345-ABCD, easier to read and type. */
+export const formatCode = (code) => (code?.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : code);

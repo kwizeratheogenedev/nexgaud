@@ -75,6 +75,8 @@ Public check of a stolen IMEI and a finder's message (the owner got the alert an
 
 ## Next: Phase 4 (weeks 19–24), tags and laptops
 
+Built: see [phase-4.md](phase-4.md).
+
 Gate: 100 tags in use and the laptop agent running on 3 operating systems.
 
 1. QR tag generator, printable sticker sheets, finder page and message relay

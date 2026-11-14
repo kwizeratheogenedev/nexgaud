@@ -21,6 +21,9 @@ export const ALERT_TYPES = [
   'dispute_opened',
   'dispute_resolved',
   'item_transferred',
+  // QR tags (tagId instead of deviceId).
+  'tag_scanned',
+  'tag_message',
 ];
 export const PHONE_EVENT_TYPES = ['protection_off', 'admin_off', 'pin_failed', 'low_battery', 'shutdown'];
 export const ALERT_RETENTION_DAYS = 180;
@@ -30,6 +33,8 @@ const alertSchema = new mongoose.Schema(
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     deviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Device' },
     itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'RegistryItem' },
+    tagId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tag' },
+    threadId: { type: mongoose.Schema.Types.ObjectId, ref: 'TagThread' },
     // Registry alerts: who checked the device (a partner's name, or "USSD"), and a finder's message.
     source: { type: String, maxlength: 80 },
     message: { type: String, maxlength: 500 },
@@ -57,6 +62,8 @@ alertSchema.methods.toPublic = function toPublic() {
     id: this.id,
     deviceId: this.deviceId ? String(this.deviceId) : null,
     itemId: this.itemId ? String(this.itemId) : null,
+    tagId: this.tagId ? String(this.tagId) : null,
+    threadId: this.threadId ? String(this.threadId) : null,
     source: this.source ?? null,
     message: this.message ?? null,
     contactPhone: this.contactPhone ?? null,

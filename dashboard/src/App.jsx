@@ -10,6 +10,9 @@ import PilotStats from './pages/PilotStats.jsx';
 import Registry from './pages/Registry.jsx';
 import PartnerPortal from './pages/PartnerPortal.jsx';
 import AdminRegistry from './pages/AdminRegistry.jsx';
+import Tags from './pages/Tags.jsx';
+import OrgPage from './pages/OrgPage.jsx';
+import TagsAdmin from './pages/TagsAdmin.jsx';
 
 function HealthDot() {
   const { t } = useI18n();
@@ -31,7 +34,7 @@ function HealthDot() {
   return <span className={`dot dot-${state}`} title={label} aria-label={label} role="img" />;
 }
 
-function AlertsMenu({ alerts, unread, devices, onOpenDevice, onOpenRegistry, onMarkAllRead }) {
+function AlertsMenu({ alerts, unread, devices, onOpenDevice, onOpenRegistry, onOpenTags, onMarkAllRead }) {
   const { lang, t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -49,8 +52,10 @@ function AlertsMenu({ alerts, unread, devices, onOpenDevice, onOpenRegistry, onM
     };
   }, [open]);
 
-  const deviceName = (a) =>
-    a.deviceId ? (devices.find((d) => d.id === a.deviceId)?.name ?? t('devices.phone')) : t('alerts.registered');
+  const deviceName = (a) => {
+    if (a.deviceId) return devices.find((d) => d.id === a.deviceId)?.name ?? t('devices.phone');
+    return a.tagId ? t('alerts.tag') : t('alerts.registered');
+  };
 
   return (
     <div className="alerts-menu" ref={ref}>
@@ -80,6 +85,7 @@ function AlertsMenu({ alerts, unread, devices, onOpenDevice, onOpenRegistry, onM
                   <button
                     onClick={() => {
                       if (a.deviceId) onOpenDevice(a.deviceId);
+                      else if (a.tagId) onOpenTags();
                       else onOpenRegistry();
                       setOpen(false);
                     }}
@@ -152,8 +158,10 @@ export default function App() {
   const tabs = [
     ['devices', t('nav.devices')],
     ['registry', t('nav.registry')],
+    ['tags', t('nav.tags')],
+    ['org', t('nav.org')],
     ...(isPartner ? [['partner', t('nav.partner')]] : []),
-    ...(isAdmin ? [['pilot', t('nav.pilot')], ['registryAdmin', t('nav.registryAdmin')]] : []),
+    ...(isAdmin ? [['pilot', t('nav.pilot')], ['registryAdmin', t('nav.registryAdmin')], ['tagsAdmin', t('nav.tagsAdmin')]] : []),
   ];
   const current = tabs.some(([key]) => key === view) ? view : 'devices';
 
@@ -180,6 +188,7 @@ export default function App() {
             setSelectedId(id);
           }}
           onOpenRegistry={() => setView('registry')}
+          onOpenTags={() => setView('tags')}
           onMarkAllRead={() => markAlertsRead().then(loadAlerts)}
         />
         <LanguagePicker onChange={(language) => updateMe({ language }).catch(() => {})} />
@@ -200,6 +209,20 @@ export default function App() {
         <AdminRegistry />
       ) : current === 'partner' ? (
         <PartnerPortal />
+      ) : current === 'tagsAdmin' ? (
+        <TagsAdmin />
+      ) : current === 'tags' ? (
+        <Tags />
+      ) : current === 'org' ? (
+        <OrgPage
+          user={user}
+          devices={devices}
+          setDevices={setDevices}
+          onOpenDevice={(id) => {
+            setView('devices');
+            setSelectedId(id);
+          }}
+        />
       ) : current === 'registry' ? (
         <Registry devices={devices} />
       ) : (

@@ -82,6 +82,23 @@ await TheftReport.create({
 });
 await Dispute.create({ itemId: stolenItem._id, raisedBy: neighbour._id, reason: 'report', message: 'I bought this phone second-hand last month and now it shows as stolen.' });
 
+// QR tags and an organisation: the owner manages a demo school, has a tag with a finder's message,
+// and the team has printed a batch of tags to sell.
+const { Org } = await import('../src/models/Org.js');
+const { Tag } = await import('../src/models/Tag.js');
+const { TagBatch } = await import('../src/models/TagBatch.js');
+const { TagThread } = await import('../src/models/TagThread.js');
+const { randomCode } = await import('../src/lib/codes.js');
+const school = await Org.create({ name: 'Green Hills Academy (demo)', type: 'school', district: 'Gasabo', createdBy: owner._id, members: [{ userId: owner._id }, { userId: neighbour._id }] });
+const keys = await Tag.create({ code: randomCode(8), status: 'active', ownerId: owner._id, name: 'House keys', kind: 'keys', message: 'Thank you for finding my keys! Please write to me.', claimedAt: new Date(), scans: 1, lastScanAt: new Date(Date.now() - 3600000) });
+await Tag.create({ code: randomCode(8), status: 'active', ownerId: owner._id, orgId: school._id, name: 'Projector bag', kind: 'bag', message: 'Please bring this to the Green Hills Academy reception.', claimedAt: new Date() });
+await TagThread.create({
+  tagId: keys._id, ownerId: owner._id, finderTokenHash: hmac(`thread:${randomToken(24)}`), finderPhone: normalizePhone('0788555444'), finderLanguage: 'rw',
+  messages: [{ from: 'finder', text: 'I found your keys at Kimironko market, near the fruit stalls.', location: { lat: -1.9502, lng: 30.1255, accuracyM: 20 } }],
+});
+const batch = await TagBatch.create({ name: 'Kigali Phones, demo pack', count: 6, createdBy: admin._id });
+await Tag.insertMany(Array.from({ length: 6 }, () => ({ code: randomCode(8), claimCode: randomCode(6), batchId: batch._id, status: 'unclaimed' })));
+
 // A loop through central Kigali: city centre → Nyabugogo road → Kimihurura → back.
 const PATH = [
   [-1.9441, 30.0619], [-1.9468, 30.0587], [-1.9496, 30.0551], [-1.9530, 30.0602],
@@ -157,6 +174,7 @@ setTimeout(() => heartbeat('demo-sim-other').then(() => logger.info('[demo phone
 setInterval(tick, 15000);
 
 logger.info(`Demo ready. Sign in to the dashboard with ${phone}, ${adminPhone} (NexGuard team) or ${shopPhone} (partner shop). Codes appear below as [dev SMS].`);
+logger.info(`Tags: the finder page of the "House keys" tag is http://localhost:5173/t/${keys.code}. ${owner.name} also manages "${school.name}"; add a laptop there with the agent in agent/.`);
 logger.info(`Registry: IMEI ${DEMO_IMEIS.stolen} is reported stolen, ${DEMO_IMEIS.tracked} is registered, ${DEMO_IMEIS.pending} has a report waiting for review. Public check: http://localhost:5173/check`);
 
 const stop = async () => {

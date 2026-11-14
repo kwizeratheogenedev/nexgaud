@@ -33,6 +33,8 @@ const schema = z.object({
   USSD_CODE: z.string().max(20).optional(),
   // Where the public check page lives, used in SMS replies.
   PUBLIC_CHECK_URL: z.string().url().optional(),
+  // The dashboard's public address: QR tags link to <PUBLIC_APP_URL>/t/<code>, and SMS to finders link there.
+  PUBLIC_APP_URL: z.string().url().default('http://localhost:5173'),
 });
 
 const parsed = schema.safeParse(process.env);

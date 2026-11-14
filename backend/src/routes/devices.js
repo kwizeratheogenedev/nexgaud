@@ -10,6 +10,10 @@ import { badRequest, notFound } from '../lib/errors.js';
 import { objectId, validate } from '../lib/validate.js';
 import { requireUser } from '../middleware/auth.js';
 import { wakeDevice } from '../services/push.js';
+import { managedOrgIds, scopeFor } from '../services/access.js';
+import { PairingCode, PAIRING_TTL_MS } from '../models/PairingCode.js';
+import { MAX_ORG_DEVICES } from '../models/Org.js';
+import { pairingCode } from '../lib/codes.js';
 
 // Owner-facing device routes (web dashboard and the app's own account screens).
 const router = Router();
@@ -18,8 +22,9 @@ router.use(requireUser);
 export const MAX_DEVICES_PER_USER = 10;
 const MAX_HISTORY_DAYS = 7;
 
+// Personal devices, plus the laptops of organisations the user manages.
 async function ownedDevice(req) {
-  const device = await Device.findOne({ _id: req.valid.params.id, ownerId: req.user._id });
+  const device = await Device.findOne({ _id: req.valid.params.id, ...(await scopeFor(req.user)) });
   if (!device) throw notFound('Device');
   return device;
 }
@@ -42,7 +47,7 @@ router.post(
     }),
   ),
   async (req, res) => {
-    const count = await Device.countDocuments({ ownerId: req.user._id });
+    const count = await Device.countDocuments({ ownerId: req.user._id, orgId: null });
     if (count >= MAX_DEVICES_PER_USER) {
       throw badRequest('device_limit', `You can add up to ${MAX_DEVICES_PER_USER} devices`);
     }
@@ -58,8 +63,36 @@ router.post(
   },
 );
 
+// Laptops have no browser sign-in: the owner makes a one-time code here and types it into the agent.
+router.post(
+  '/pairing-codes',
+  validate(
+    z.object({
+      orgId: objectId.optional(),
+      name: z.string().trim().min(1).max(60).optional(),
+      assignedTo: z.string().trim().max(60).optional(),
+    }),
+  ),
+  async (req, res) => {
+    const { orgId, name, assignedTo } = req.valid.body;
+    if (orgId) {
+      const managed = await managedOrgIds(req.user);
+      if (!managed.some((id) => String(id) === orgId)) throw notFound('Organisation');
+      if ((await Device.countDocuments({ orgId })) >= MAX_ORG_DEVICES) {
+        throw badRequest('device_limit', `An organisation can have up to ${MAX_ORG_DEVICES} devices`);
+      }
+    } else if ((await Device.countDocuments({ ownerId: req.user._id, orgId: null })) >= MAX_DEVICES_PER_USER) {
+      throw badRequest('device_limit', `You can add up to ${MAX_DEVICES_PER_USER} devices`);
+    }
+    const code = pairingCode();
+    const expiresAt = new Date(Date.now() + PAIRING_TTL_MS);
+    await PairingCode.create({ codeHash: hmac(`pair:${code}`), ownerId: req.user._id, orgId, name, assignedTo, expiresAt });
+    res.status(201).json({ code: `${code.slice(0, 4)}-${code.slice(4)}`, expiresAt });
+  },
+);
+
 router.get('/', async (req, res) => {
-  const devices = await Device.find({ ownerId: req.user._id }).sort({ createdAt: 1 });
+  const devices = await Device.find(await scopeFor(req.user)).sort({ createdAt: 1 });
   res.json({ devices: devices.map((d) => d.toPublic()) });
 });
 
@@ -74,6 +107,7 @@ router.patch(
     z
       .object({
         name: z.string().trim().min(1).max(60).optional(),
+        assignedTo: z.string().trim().max(60).optional(),
         status: z.enum(['normal', 'lost', 'recovered']).optional(),
         // Shown on the phone's screen while it is lost.
         lostMessage: z.string().trim().max(200).optional(),
@@ -88,9 +122,10 @@ router.patch(
   ),
   async (req, res) => {
     const device = await ownedDevice(req);
-    const { name, status, lostMessage, contactPhone } = req.valid.body;
+    const { name, assignedTo, status, lostMessage, contactPhone } = req.valid.body;
     const wasLost = isLostStatus(device.status);
     if (name) device.name = name;
+    if (assignedTo !== undefined) device.assignedTo = assignedTo || undefined;
     if (status) device.status = status;
     const isLost = isLostStatus(device.status);
 

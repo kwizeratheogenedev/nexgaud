@@ -4,6 +4,7 @@ import { dateTime, isLost, isOnline, timeAgo } from '../format.js';
 import { useI18n } from '../i18n.jsx';
 import { usePolling } from '../usePolling.js';
 import DeviceMap from '../components/DeviceMap.jsx';
+import AddLaptop from '../components/AddLaptop.jsx';
 
 const ROUTE_HOURS = 24;
 
@@ -19,6 +20,7 @@ function DeviceListItem({ device, selected, onSelect }) {
           <small>
             {online ? t('devices.online') : t('devices.lastSeenAgo', { time: timeAgo(device.lastSeenAt, lang, t) })}
             {device.battery != null && ` · ${device.battery}%`}
+            {device.type === 'laptop' && ` · ${device.assignedTo ?? t('devices.laptop')}`}
           </small>
         </span>
         {isLost(device) && <span className="badge badge-lost">{t('devices.lostBadge')}</span>}
@@ -31,6 +33,10 @@ function PermissionWarnings({ device }) {
   const { t } = useI18n();
   const p = device.permissions ?? {};
   const warnings = [];
+  if (device.type === 'laptop') {
+    if (p.location === 'denied') warnings.push(t('warn.laptopLocation'));
+    return warnings.length ? <ul className="warnings">{warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null;
+  }
   if (p.location && p.location !== 'always') warnings.push(t('warn.location'));
   if (p.batteryOptimized) warnings.push(t('warn.battery'));
   if (p.deviceAdmin === false) warnings.push(t('warn.admin'));
@@ -51,7 +57,7 @@ function CommandPanel({ device, commands, onSend, busy }) {
       <div className="actions">
         <button onClick={() => onSend('ring')} disabled={busy}>{t('actions.ring')}</button>
         <button onClick={() => onSend('locate')} disabled={busy}>{t('actions.locate')}</button>
-        <button onClick={() => onSend('lock')} disabled={busy || device.permissions?.deviceAdmin === false}>
+        <button onClick={() => onSend('lock')} disabled={busy || (device.type !== 'laptop' && device.permissions?.deviceAdmin === false)}>
           {t('actions.lock')}
         </button>
       </div>
@@ -195,6 +201,7 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
   const [commands, setCommands] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [addingLaptop, setAddingLaptop] = useState(false);
 
   const selected = devices?.find((d) => d.id === selectedId) ?? null;
 
@@ -278,6 +285,8 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
           <li>{t('devices.empty3')}</li>
         </ol>
         <p className="hint">{t('devices.emptyHint')}</p>
+        <h3>{t('laptop.add')}</h3>
+        <AddLaptop onDone={loadDevices} />
       </section>
     );
   }
@@ -293,6 +302,16 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
             <DeviceListItem key={d.id} device={d} selected={d.id === selectedId} onSelect={() => setSelectedId(d.id)} />
           ))}
         </ul>
+        {addingLaptop ? (
+          <AddLaptop
+            onDone={() => {
+              setAddingLaptop(false);
+              loadDevices();
+            }}
+          />
+        ) : (
+          <button className="spaced-top full-width" onClick={() => setAddingLaptop(true)}>{t('laptop.add')}</button>
+        )}
       </aside>
 
       <section className="map-area">
@@ -304,7 +323,12 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
         <aside className="panel">
           <div className="panel-section">
             <h2>{selected.name}</h2>
-            <p className="hint">{[selected.brand, selected.model].filter(Boolean).join(' ') || t('devices.phone')}</p>
+            <p className="hint">
+              {selected.type === 'laptop'
+                ? [t('devices.laptop'), selected.platform, selected.hostname].filter(Boolean).join(' · ')
+                : [selected.brand, selected.model].filter(Boolean).join(' ') || t('devices.phone')}
+            </p>
+            {selected.assignedTo && <p className="hint">{t('devices.assignedTo')}: {selected.assignedTo}</p>}
             <dl>
               <dt>{t('devices.lastLocation')}</dt>
               <dd>

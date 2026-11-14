@@ -161,3 +161,41 @@ export function openBlob(blob) {
   window.open(url, '_blank', 'noopener');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+
+// Laptops (pairing codes for the agent)
+export const makePairingCode = (body) => api('/devices/pairing-codes', { method: 'POST', body });
+
+// QR tags (owners)
+export const listTags = () => api('/tags').then((d) => d.tags);
+export const createTags = (body) => api('/tags', { method: 'POST', body }).then((d) => d.tags);
+export const claimTag = (body) => api('/tags/claim', { method: 'POST', body }).then((d) => d.tag);
+export const updateTag = (id, body) => api(`/tags/${id}`, { method: 'PATCH', body }).then((d) => d.tag);
+export const disableTag = (id) => api(`/tags/${id}`, { method: 'DELETE' });
+export const listThreads = () => api('/tags/threads/all').then((d) => d.threads);
+export const readThread = (id) => api(`/tags/threads/${id}/read`, { method: 'POST' }).then((d) => d.thread);
+export const replyThread = (id, text) => api(`/tags/threads/${id}/reply`, { method: 'POST', body: { text } });
+export const closeThread = (id) => api(`/tags/threads/${id}/close`, { method: 'POST' }).then((d) => d.thread);
+
+// QR tags (finders, no sign-in)
+export const scanTag = (code, repeat) => api(`/tags/public/${encodeURIComponent(code)}${repeat ? '?repeat=1' : ''}`, { auth: false }).then((d) => d.tag);
+export const startThread = (code, body) => api(`/tags/public/${encodeURIComponent(code)}/threads`, { method: 'POST', body, auth: false });
+export const getFinderThread = (token) => api(`/tags/public/threads/${token}`, { auth: false }).then((d) => d.thread);
+export const finderMessage = (token, body) => api(`/tags/public/threads/${token}/messages`, { method: 'POST', body, auth: false }).then((d) => d.thread);
+
+// Organisations
+export const listOrgs = () => api('/orgs').then((d) => d.orgs);
+export const createOrg = (body) => api('/orgs', { method: 'POST', body }).then((d) => d.org);
+export const updateOrg = (id, body) => api(`/orgs/${id}`, { method: 'PATCH', body }).then((d) => d.org);
+export const addOrgMember = (id, phone) => api(`/orgs/${id}/members`, { method: 'POST', body: { phone } }).then((d) => d.org);
+export const removeOrgMember = (id, userId) => api(`/orgs/${id}/members/${userId}`, { method: 'DELETE' }).then((d) => d.org);
+
+// NexGuard team: tags, laptops, organisations
+export const phase4Stats = () => api('/admin/phase4/stats');
+export const listTagBatches = () => api('/admin/tag-batches').then((d) => d.batches);
+export const createTagBatch = (body) => api('/admin/tag-batches', { method: 'POST', body }).then((d) => d.batch);
+export const tagBatchSheet = (id) => api(`/admin/tag-batches/${id}/tags`);
+export const adminOrgs = () => api('/admin/orgs').then((d) => d.orgs);
+export const setOrgStatus = (id, status) => api(`/admin/orgs/${id}`, { method: 'PATCH', body: { status } });
+
+/** The API address a laptop agent should use (shown in the pairing steps). */
+export const apiBaseForAgents = () => new URL(BASE, window.location.origin).href;

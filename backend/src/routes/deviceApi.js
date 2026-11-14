@@ -8,6 +8,7 @@ import { notFound } from '../lib/errors.js';
 import { objectId, validate } from '../lib/validate.js';
 import { requireDevice } from '../middleware/auth.js';
 import { expireOld } from './devices.js';
+import { Org } from '../models/Org.js';
 
 // Routes the phone itself calls, authenticated with its device token.
 const router = Router();
@@ -206,8 +207,10 @@ router.post(
 );
 
 // What the app shows on its own screen: which account protects it and whether it is marked lost.
+// Laptops also show who manages them (an organisation), so tracking is never hidden.
 router.get('/me', async (req, res) => {
-  res.json({ device: req.device.toPublic() });
+  const org = req.device.orgId ? await Org.findById(req.device.orgId).select('name') : null;
+  res.json({ device: req.device.toPublic(), org: org ? { name: org.name } : null });
 });
 
 export default router;
