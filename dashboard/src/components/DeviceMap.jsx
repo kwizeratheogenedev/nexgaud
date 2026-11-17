@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Circle,
   CircleMarker,
@@ -35,12 +35,13 @@ const SATELLITE_ATTRIBUTION =
 const ROADS_URL = `${ESRI}/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}`;
 const PLACES_URL = `${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`;
 
+// Satellite unless the person picked the street map in this browser: houses and roads are easier to recognise.
 const LAYER_KEY = 'nexguard.mapLayer';
 function savedLayer() {
   try {
-    return localStorage.getItem(LAYER_KEY) === 'satellite' ? 'satellite' : 'streets';
+    return localStorage.getItem(LAYER_KEY) === 'streets' ? 'streets' : 'satellite';
   } catch {
-    return 'streets';
+    return 'satellite';
   }
 }
 
@@ -73,7 +74,19 @@ function Focus({ last, route, deviceId }) {
   return null;
 }
 
-export default function DeviceMap({ device, route }) {
+/** While finding: shows both the person and the device once, then lets them pan freely. */
+function FitBoth({ me, last }) {
+  const map = useMap();
+  const done = useRef(false);
+  useEffect(() => {
+    if (!me || !last || done.current) return;
+    done.current = true;
+    map.fitBounds([[me.lat, me.lng], [last.lat, last.lng]], { padding: [60, 60], maxZoom: 18 });
+  }, [me, last, map]);
+  return null;
+}
+
+export default function DeviceMap({ device, route, me }) {
   const { lang, t } = useI18n();
   const last = device?.lastLocation;
   const path = route.map((p) => [p.lat, p.lng]);
@@ -84,15 +97,15 @@ export default function DeviceMap({ device, route }) {
     <MapContainer center={last ? [last.lat, last.lng] : KIGALI} zoom={last ? 17 : 12} maxZoom={MAX_ZOOM} className="map" scrollWheelZoom>
       {/* key={lang}: the layer names follow the chosen language */}
       <LayersControl position="topright" key={lang}>
-        <LayersControl.BaseLayer name={names.streets} checked={initial === 'streets'}>
-          <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} maxZoom={MAX_ZOOM} maxNativeZoom={19} />
-        </LayersControl.BaseLayer>
         <LayersControl.BaseLayer name={names.satellite} checked={initial === 'satellite'}>
           <LayerGroup>
             <TileLayer attribution={SATELLITE_ATTRIBUTION} url={SATELLITE_URL} maxZoom={MAX_ZOOM} maxNativeZoom={19} />
             <TileLayer url={ROADS_URL} maxZoom={MAX_ZOOM} maxNativeZoom={19} />
             <TileLayer url={PLACES_URL} maxZoom={MAX_ZOOM} maxNativeZoom={19} />
           </LayerGroup>
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name={names.streets} checked={initial === 'streets'}>
+          <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} maxZoom={MAX_ZOOM} maxNativeZoom={19} />
         </LayersControl.BaseLayer>
       </LayersControl>
       <RememberLayer names={names} />
@@ -113,6 +126,20 @@ export default function DeviceMap({ device, route }) {
               {device.name}
             </Tooltip>
           </CircleMarker>
+        </>
+      )}
+
+      {/* Finding: the person's own position (blue) and a dashed line to the device. */}
+      {me && (
+        <>
+          {last && <Polyline positions={[[me.lat, me.lng], [last.lat, last.lng]]} pathOptions={{ color: '#ffd400', weight: 4, dashArray: '8 8' }} />}
+          {me.accuracyM > 0 && <Circle center={[me.lat, me.lng]} radius={me.accuracyM} pathOptions={{ color: '#1a73e8', weight: 1, fillOpacity: 0.1 }} />}
+          <CircleMarker center={[me.lat, me.lng]} radius={8} pathOptions={{ color: '#fff', weight: 3, fillColor: '#1a73e8', fillOpacity: 1 }}>
+            <Tooltip permanent direction="bottom" offset={[0, 10]}>
+              {t('find.you')}
+            </Tooltip>
+          </CircleMarker>
+          <FitBoth me={me} last={last} />
         </>
       )}
       <Focus last={last} route={route} deviceId={device?.id} />

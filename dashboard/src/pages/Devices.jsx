@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getRoute, listCommands, listDevices, removeDevice, sendCommand, updateDevice } from '../api.js';
 import { dateTime, isLost, isOnline, timeAgo } from '../format.js';
 import { useI18n } from '../i18n.jsx';
 import { usePolling } from '../usePolling.js';
 import DeviceMap from '../components/DeviceMap.jsx';
 import AddLaptop from '../components/AddLaptop.jsx';
+import { direction, directionsUrl, distanceM, formatDistance, useMyPosition } from '../geo.js';
 
 const ROUTE_HOURS = 24;
 
@@ -179,6 +180,53 @@ function LostPanel({ device, onSave, busy }) {
   );
 }
 
+/** Walk to the device: show where I am, how far and which way; or open turn-by-turn directions. */
+function FindPanel({ device, finding, setFinding, me, error }) {
+  const { lang, t } = useI18n();
+  const last = device.lastLocation;
+  if (!last) return null;
+  return (
+    <div className="panel-section find-panel">
+      <h3>{t('find.title')}</h3>
+      <p className="hint">{t('find.intro')}</p>
+      <div className="actions">
+        <button className={finding ? '' : 'primary-inline'} onClick={() => setFinding(!finding)}>
+          {finding ? t('find.stop') : t('find.start')}
+        </button>
+        <a className="button-link" href={directionsUrl(last)} target="_blank" rel="noreferrer">{t('find.directions')}</a>
+      </div>
+      {finding && !me && !error && <p className="hint">{t('find.waiting')}</p>}
+      {error && <p className="error">{t(`find.error.${error}`)}</p>}
+      <p className="hint">
+        {t('find.lastKnown', { time: timeAgo(last.at, lang, t), accuracy: Math.round(last.accuracyM ?? 0) })}
+      </p>
+    </div>
+  );
+}
+
+/** The distance box on the map while finding. */
+function FindOverlay({ device, me }) {
+  const { t } = useI18n();
+  const last = device?.lastLocation;
+  if (!me || !last) return null;
+  const metres = distanceM(me, last);
+  // Closer than the two accuracy circles: the device is somewhere around here.
+  const near = metres <= Math.max(30, (last.accuracyM ?? 0) + (me.accuracyM ?? 0));
+  return (
+    <div className="find-overlay" role="status">
+      {near ? (
+        <strong>{t('find.near')}</strong>
+      ) : (
+        <>
+          <strong>{formatDistance(metres)}</strong>
+          <span>{t(`find.dir.${direction(me, last)}`)}</span>
+        </>
+      )}
+      <small>{t('find.accuracy', { me: me.accuracyM, device: Math.round(last.accuracyM ?? 0) })}</small>
+    </div>
+  );
+}
+
 function DeviceAlerts({ alerts }) {
   const { lang, t } = useI18n();
   if (!alerts.length) return null;
@@ -207,8 +255,11 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [addingLaptop, setAddingLaptop] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const { me, error: findError } = useMyPosition(finding);
 
   const selected = devices?.find((d) => d.id === selectedId) ?? null;
+  useEffect(() => setFinding(false), [selectedId]);
 
   const loadDevices = useCallback(async () => {
     try {
@@ -320,7 +371,8 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
       </aside>
 
       <section className="map-area">
-        <DeviceMap device={selected} route={route} />
+        <DeviceMap device={selected} route={route} me={finding ? me : null} />
+        {finding && <FindOverlay device={selected} me={me} />}
         {!selected?.lastLocation && <p className="map-note">{t('devices.noLocation')}</p>}
       </section>
 
@@ -367,6 +419,7 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
             {error && <p className="error" role="alert">{error}</p>}
           </div>
 
+          <FindPanel device={selected} finding={finding} setFinding={setFinding} me={me} error={findError} />
           {!selected.sharedBy && <LostPanel key={selected.id} device={selected} onSave={saveDevice} busy={busy} />}
           <DeviceAlerts alerts={deviceAlerts} />
           <CommandPanel device={selected} commands={commands} onSend={send} busy={busy} />
