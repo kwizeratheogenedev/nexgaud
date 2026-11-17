@@ -22,6 +22,9 @@ if (process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
+// Demo mode: the sign-in page shows each code, because no real SMS is sent.
+process.env.NEXGUARD_DEMO = '1';
+
 const mongo = await MongoMemoryServer.create();
 process.env.MONGODB_URI = mongo.getUri('nexguard');
 

@@ -57,7 +57,7 @@ Edit `.env` first; every setting is explained there. In development, sign-in cod
 
 **Android:** open the `android/` folder in Android Studio, or build from the command line with `cd android && ./gradlew assembleDebug` (needs Java 17 and the Android SDK; set `sdk.dir` in `android/local.properties`). The APK lands in `android/app/build/outputs/apk/debug/`. Run on an emulator: debug builds call the API at `http://10.0.2.2:4000/api/v1`, your PC's localhost. To use a real phone on the same Wi-Fi, add `nexguard.apiUrl.debug=http://<your-PC-IP>:4000/api/v1` to `android/gradle.properties`.
 
-**Map tiles:** the dashboard uses the public OpenStreetMap tiles, which are for light use only. Before launch set `VITE_TILE_URL` (and `VITE_TILE_ATTRIBUTION`) to a paid or self-hosted tile service.
+**Map tiles:** the map has two views, **Map** (OpenStreetMap) and **Satellite** (Esri World Imagery, with roads and place names on top), switched with the button at the top right of the map. Both public services are for light use only. Before launch, set `VITE_TILE_URL` (and `VITE_TILE_ATTRIBUTION`) to a paid or self-hosted street map, and `VITE_SATELLITE_URL` (and `VITE_SATELLITE_ATTRIBUTION`) to a satellite service you have an account with (for example Esri ArcGIS, MapTiler or Mapbox).
 
 **Admins:** `cd backend && npm run make-admin -- 0788123456` lets that account (after it has signed in once) open the pilot statistics and the registry admin.
 

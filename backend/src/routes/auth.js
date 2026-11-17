@@ -88,7 +88,10 @@ router.post('/otp/request', ipLimiter, validate(z.object({ phone: phoneField }))
   );
 
   await sendSms(phone, `Your NexGuard code is ${code}. It expires in 10 minutes. Never share it.`);
-  res.json({ sent: true, phone, expiresInSec: CODE_TTL_MS / 1000 });
+  // Demo mode only (npm run demo, no real SMS): the sign-in page shows the code itself.
+  // Never in normal development or production; config.js also refuses demo mode in production.
+  const devCode = config.demoShowCodes ? code : undefined;
+  res.json({ sent: true, phone, expiresInSec: CODE_TTL_MS / 1000, ...(devCode ? { devCode } : {}) });
 });
 
 router.post(

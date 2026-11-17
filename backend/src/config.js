@@ -99,4 +99,6 @@ export const config = {
   gatewaySecret: env.GATEWAY_SECRET ?? (isProd ? null : 'dev-gateway-secret-change-me'),
   paymentCallbackSecret: env.PAYMENT_CALLBACK_SECRET ?? (isProd ? null : 'dev-payment-secret-change-me'),
   metricsToken: env.METRICS_TOKEN ?? null,
+  // Set by scripts/demo.js: show sign-in codes on the page, since the demo sends no real SMS.
+  demoShowCodes: process.env.NEXGUARD_DEMO === '1' && !isProd && env.SMS_PROVIDER === 'console',
 };

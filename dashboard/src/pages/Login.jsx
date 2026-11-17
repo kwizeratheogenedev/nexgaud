@@ -8,6 +8,7 @@ export default function Login({ onSignedIn }) {
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [sentTo, setSentTo] = useState('');
+  const [devCode, setDevCode] = useState('');
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -20,6 +21,7 @@ export default function Login({ onSignedIn }) {
     try {
       const res = await requestCode(phone);
       setSentTo(res.phone);
+      setDevCode(res.devCode ?? '');
       setStep('code');
     } catch (err) {
       setError(err.details?.phone?.[0] ?? err.message);
@@ -77,6 +79,11 @@ export default function Login({ onSignedIn }) {
                 {t('login.changeNumber')}
               </button>
             </p>
+            {devCode && (
+              <p className="dev-code" role="status">
+                {t('login.devCode')} <button type="button" className="link mono" onClick={() => setCode(devCode)}>{devCode}</button>
+              </p>
+            )}
             <label htmlFor="code">{t('login.code')}</label>
             <input
               id="code"

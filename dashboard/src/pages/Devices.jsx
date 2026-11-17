@@ -79,7 +79,11 @@ function CommandPanel({ device, commands, onSend, busy }) {
         />
         <button type="submit" disabled={busy || !message.trim()}>{t('actions.show')}</button>
       </form>
-      {!device.pushEnabled && <p className="hint">{t('actions.noPush')}</p>}
+      {device.type === 'laptop' ? (
+        <p className="hint">{t('actions.laptopDelivery')}</p>
+      ) : (
+        !device.pushEnabled && <p className="hint">{t('actions.noPush')}</p>
+      )}
 
       <h3>{t('actions.recent')}</h3>
       {commands.length === 0 ? (

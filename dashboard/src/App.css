@@ -337,3 +337,7 @@ input.narrow { width: 90px; flex: none; }
   body.printing-invoice .modal { box-shadow: none; border: none; max-height: none; color: #000; background: #fff; width: 100%; }
   body.printing-invoice .no-print { display: none; }
 }
+
+/* Demo mode: the sign-in code shown on the page */
+.dev-code { background: var(--warn-bg); border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; }
+.dev-code .mono { font-size: 1.15rem; font-weight: 700; margin-left: 4px; }

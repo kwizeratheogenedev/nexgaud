@@ -30,6 +30,7 @@ const en = {
   'login.name': 'Your name (only needed the first time)',
   'login.signIn': 'Sign in',
   'login.checking': 'Checking…',
+  'login.devCode': "Demo mode, no SMS is sent. Your code (click to fill it in):",
 
   'devices.loading': 'Loading your devices…',
   'devices.emptyTitle': 'No devices yet',
@@ -134,6 +135,7 @@ const fr = {
   'login.name': 'Votre nom (seulement la première fois)',
   'login.signIn': 'Se connecter',
   'login.checking': 'Vérification…',
+  'login.devCode': "Mode démo, aucun SMS n'est envoyé. Votre code (cliquez pour le remplir) :",
 
   'devices.loading': 'Chargement de vos appareils…',
   'devices.emptyTitle': "Pas encore d'appareil",
@@ -238,6 +240,7 @@ const rw = {
   'login.name': 'Izina ryawe (rikenewe ubwa mbere gusa)',
   'login.signIn': 'Injira',
   'login.checking': 'Turimo kugenzura…',
+  'login.devCode': "Uburyo bw'igerageza, nta SMS yoherezwa. Kode yawe (kanda uyishyiremo):",
 
   'devices.loading': 'Turimo gushaka ibikoresho byawe…',
   'devices.emptyTitle': 'Nta gikoresho kirandikwa',
