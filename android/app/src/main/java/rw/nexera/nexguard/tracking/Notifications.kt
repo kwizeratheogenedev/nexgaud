@@ -62,11 +62,19 @@ object Notifications {
     )
 
     /** The permanent notification while tracking runs. It is never hidden (anti-stalking rule). */
-    fun tracking(ctx: Context, lostMode: Boolean): Notification =
+    fun tracking(ctx: Context, lostMode: Boolean, live: Boolean = false): Notification =
         NotificationCompat.Builder(ctx, CHANNEL_TRACKING)
             .setSmallIcon(R.drawable.ic_shield)
-            .setContentTitle(ctx.getString(if (lostMode) R.string.notif_tracking_lost else R.string.notif_tracking))
-            .setContentText(ctx.getString(R.string.notif_tracking_text))
+            .setContentTitle(
+                ctx.getString(
+                    when {
+                        lostMode -> R.string.notif_tracking_lost
+                        live -> R.string.notif_tracking_live
+                        else -> R.string.notif_tracking
+                    },
+                ),
+            )
+            .setContentText(ctx.getString(if (live) R.string.notif_tracking_live_text else R.string.notif_tracking_text))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)

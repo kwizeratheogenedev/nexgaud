@@ -146,6 +146,8 @@ async function answer(command) {
   logger.info(`[demo phone] handled "${command.type}"`);
 }
 
+let liveUntil = 0;
+
 async function tick() {
   try {
     const points = [];
@@ -160,12 +162,14 @@ async function tick() {
         battery,
         recordedAt: new Date(Date.now() - k * 90 * 1000).toISOString(),
       });
-      step++;
+      // Live tracking: small steps (about 20 m) so the dashboard shows it walking along the road.
+      step += Date.now() < liveUntil ? 0.05 : 1;
     }
     battery = Math.max(5, battery - 0.2);
     const res = await fetch(`${base}/locations`, { method: 'POST', headers, body: JSON.stringify({ points: points.map((p) => ({ ...p, battery: Math.round(p.battery) })) }) });
     const body = await res.json();
     for (const c of body.commands ?? []) await answer(c);
+    liveUntil = body.liveUntil ? new Date(body.liveUntil).getTime() : 0;
   } catch (err) {
     logger.warn({ err: err.message }, '[demo phone] upload failed');
   }
@@ -184,7 +188,13 @@ await tick();
 // A SIM swap a minute after start, so the dashboard has an alert to show.
 await heartbeat('demo-sim-mtn');
 setTimeout(() => heartbeat('demo-sim-other').then(() => logger.info('[demo phone] SIM card changed')), 60000);
-setInterval(tick, 15000);
+// Every 15 seconds, or every 3 seconds while the owner tracks it live.
+(function loop() {
+  setTimeout(async () => {
+    await tick();
+    loop();
+  }, Date.now() < liveUntil ? 3000 : 15000);
+})();
 
 logger.info(`Demo ready. Sign in to the dashboard with ${phone}, ${adminPhone} (NexGuard team) or ${shopPhone} (partner shop). Codes appear below as [dev SMS].`);
 logger.info(`Tags: the finder page of the "House keys" tag is http://localhost:5173/t/${keys.code}. ${owner.name} also manages "${school.name}"; add a laptop there with the agent in agent/.`);

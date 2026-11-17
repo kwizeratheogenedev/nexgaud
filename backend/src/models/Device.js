@@ -19,6 +19,8 @@ const deviceSchema = new mongoose.Schema(
     familyShared: { type: Boolean, default: false },
     // Days of location history kept (30 unless the owner's plan gives more).
     historyDays: Number,
+    // Live tracking: until this time the device sends its position every few seconds (owner's request).
+    liveUntil: Date,
     name: { type: String, required: true, trim: true, maxlength: 60 },
     type: { type: String, enum: ['phone', 'laptop', 'tag'], default: 'phone' },
     platform: { type: String, enum: ['android', 'ios', 'windows', 'macos', 'linux'], default: 'android' },
@@ -79,6 +81,7 @@ deviceSchema.methods.toPublic = function toPublic() {
     orgId: this.orgId ? String(this.orgId) : null,
     familyShared: this.familyShared ?? false,
     historyDays: this.historyDays ?? 30,
+    liveUntil: this.liveUntil && this.liveUntil > new Date() ? this.liveUntil : null,
     assignedTo: this.assignedTo ?? null,
     hostname: this.hostname ?? null,
     brand: this.brand ?? null,

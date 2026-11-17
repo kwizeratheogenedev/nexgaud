@@ -16,6 +16,7 @@ import { managedOrgIds, scopeFor } from '../services/access.js';
 import { PairingCode, PAIRING_TTL_MS } from '../models/PairingCode.js';
 import { MAX_ORG_DEVICES } from '../models/Org.js';
 import { pairingCode } from '../lib/codes.js';
+import { publishState, subscribe } from '../services/liveFeed.js';
 
 // Owner-facing device routes (web dashboard and the app's own account screens).
 const router = Router();
@@ -257,6 +258,48 @@ router.post(
     res.status(201).json({ command: command.toPublic() });
   },
 );
+
+// Live tracking: the device sends its position every few seconds for a while (15 minutes by default).
+// It uses more battery, so it always ends by itself. Family members may start it too (they can locate).
+export const LIVE_DEFAULT_SEC = 15 * 60;
+export const LIVE_MAX_SEC = 30 * 60;
+
+router.post(
+  '/:id/live',
+  idParams,
+  validate(z.object({ seconds: z.number().int().min(60).max(LIVE_MAX_SEC).default(LIVE_DEFAULT_SEC), stop: z.boolean().default(false) })),
+  async (req, res) => {
+    const device = await ownedDevice(req, { view: true });
+    device.liveUntil = req.valid.body.stop ? undefined : new Date(Date.now() + req.valid.body.seconds * 1000);
+    await device.save();
+    publishState(device);
+    // Wake the phone so it starts at once (with Firebase); otherwise it starts at its next check-in.
+    const pushed = req.valid.body.stop ? false : await wakeDevice(device);
+    res.json({ device: device.toPublic(), pushed });
+  },
+);
+
+// Server-sent events: each new position and status of the device, as it arrives.
+// The dashboard reads it with fetch (so the access token travels in the Authorization header, not the URL).
+router.get('/:id/stream', idParams, async (req, res) => {
+  const device = await ownedDevice(req, { view: true });
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no', // nginx: do not hold events back
+  });
+  res.flushHeaders();
+  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  send('hello', { device: device.toPublic() });
+  const unsubscribe = subscribe(device.id, send);
+  // A comment line every 25 s keeps proxies from closing a quiet connection.
+  const ping = setInterval(() => res.write(': ping\n\n'), 25000);
+  req.on('close', () => {
+    clearInterval(ping);
+    unsubscribe();
+  });
+});
 
 router.get('/:id/commands', idParams, async (req, res) => {
   const device = await ownedDevice(req, { view: true });

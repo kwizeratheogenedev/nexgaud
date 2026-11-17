@@ -55,11 +55,14 @@ class ApiException(val status: Int, val code: String?, message: String) : Except
     val rejected: Int = 0,
     val status: String? = null,
     val lostMode: LostModeDto? = null,
+    /** Live tracking: send the position every few seconds until this time (ISO 8601), or null. */
+    val liveUntil: String? = null,
     val commands: List<CommandDto> = emptyList(),
 )
 @Serializable data class HeartbeatResponse(
     val status: String = "normal",
     val lostMode: LostModeDto? = null,
+    val liveUntil: String? = null,
     val commands: List<CommandDto> = emptyList(),
 ) {
     val lost get() = status == "lost" || status == "stolen"

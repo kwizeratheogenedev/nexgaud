@@ -6,7 +6,7 @@ import { Agent } from '../src/agent.js';
 /** A stand-in for the NexGuard API: answers check-ins with whatever the test queues. */
 async function fakeApi() {
   const calls = [];
-  const queue = { commands: [], status: 'normal', lostMode: null };
+  const queue = { commands: [], status: 'normal', lostMode: null, liveUntil: null };
   const server = createServer(async (req, res) => {
     let body = '';
     for await (const chunk of req) body += chunk;
@@ -17,7 +17,7 @@ async function fakeApi() {
       queue.commands = queue.commands.filter((c) => !req.url.includes(c.id));
       return res.end(JSON.stringify({ command: {} }));
     }
-    res.end(JSON.stringify({ status: queue.status, lostMode: queue.lostMode, commands: queue.commands }));
+    res.end(JSON.stringify({ status: queue.status, lostMode: queue.lostMode, liveUntil: queue.liveUntil, commands: queue.commands }));
   });
   await new Promise((r) => server.listen(0, r));
   return { url: `http://127.0.0.1:${server.address().port}/api/v1`, calls, queue, close: () => server.close() };
@@ -107,5 +107,34 @@ test('lost mode shows the owner\'s message once, and again only if marked lost a
   await agent.tick();
   const ack = api.calls.find((c) => c.url.endsWith('/x/ack'));
   assert.equal(ack.body.status, 'failed');
+  api.close();
+});
+
+test('live tracking: a location every 10 seconds until it ends', async () => {
+  const api = await fakeApi();
+  const platform = fakePlatform();
+  let now = 1_000_000;
+  const agent = new Agent({ apiUrl: api.url, token: 'tok', platform, now: () => now });
+  const uploads = () => api.calls.filter((c) => c.url === '/api/v1/device/locations').length;
+  await agent.tick(); // first round sends a location
+  assert.equal(uploads(), 1);
+
+  api.queue.liveUntil = new Date(now + 60_000).toISOString();
+  now += 10_000;
+  await agent.tick();
+  assert.equal(agent.live, true);
+  assert.equal(uploads(), 2);
+  now += 10_000;
+  await agent.tick();
+  assert.equal(uploads(), 3);
+
+  // Live ends: back to one location every 15 minutes.
+  api.queue.liveUntil = null;
+  now += 10_000;
+  await agent.tick();
+  now += 10_000;
+  await agent.tick();
+  assert.equal(agent.live, false);
+  assert.equal(uploads(), 3);
   api.close();
 });

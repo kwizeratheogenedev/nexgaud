@@ -9,6 +9,7 @@ import { objectId, validate } from '../lib/validate.js';
 import { requireDevice } from '../middleware/auth.js';
 import { expireOld } from './devices.js';
 import { Org } from '../models/Org.js';
+import { publishLocations, publishState } from '../services/liveFeed.js';
 
 // Routes the phone itself calls, authenticated with its device token.
 const router = Router();
@@ -60,6 +61,7 @@ async function storePoints(device, incoming) {
     })),
     { ordered: false },
   );
+  publishLocations(device, points);
   const latest = points.reduce((a, b) => (b.recordedAt > a.recordedAt ? b : a));
   if (!device.lastLocationAt || latest.recordedAt > device.lastLocationAt) {
     device.lastLocation = { type: 'Point', coordinates: [latest.lng, latest.lat] };
@@ -75,6 +77,8 @@ async function phoneState(device) {
   return {
     status: device.status,
     lostMode: device.lostModePublic(),
+    // Live tracking: send the position every few seconds until then (null = normal rate).
+    liveUntil: device.liveUntil && device.liveUntil > new Date() ? device.liveUntil.toISOString() : null,
     commands: await takePendingCommands(device),
   };
 }
@@ -88,6 +92,7 @@ router.post(
     const accepted = await storePoints(device, req.valid.body.points);
     device.lastSeenAt = new Date();
     await device.save();
+    publishState(device);
 
     res.json({
       accepted,
@@ -181,6 +186,7 @@ router.post(
     await checkSim(device, simFingerprint);
     device.lastSeenAt = new Date();
     await device.save();
+    publishState(device);
     res.json(await phoneState(device));
   },
 );

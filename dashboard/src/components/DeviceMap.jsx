@@ -74,6 +74,17 @@ function Focus({ last, route, deviceId }) {
   return null;
 }
 
+/** Live tracking: keeps the moving device in view (pans only when it nears the edge, so the map stays calm). */
+function Follow({ last }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!last) return;
+    const inner = map.getBounds().pad(-0.25);
+    if (!inner.contains([last.lat, last.lng])) map.panTo([last.lat, last.lng], { animate: true });
+  }, [last?.lat, last?.lng, map]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 /** While finding: shows both the person and the device once, then lets them pan freely. */
 function FitBoth({ me, last }) {
   const map = useMap();
@@ -86,7 +97,7 @@ function FitBoth({ me, last }) {
   return null;
 }
 
-export default function DeviceMap({ device, route, me }) {
+export default function DeviceMap({ device, route, me, follow = false }) {
   const { lang, t } = useI18n();
   const last = device?.lastLocation;
   const path = route.map((p) => [p.lat, p.lng]);
@@ -142,6 +153,7 @@ export default function DeviceMap({ device, route, me }) {
           <FitBoth me={me} last={last} />
         </>
       )}
+      {follow && !me && <Follow last={last} />}
       <Focus last={last} route={route} deviceId={device?.id} />
     </MapContainer>
   );

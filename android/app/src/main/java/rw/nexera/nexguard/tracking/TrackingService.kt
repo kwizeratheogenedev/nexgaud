@@ -7,7 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.app.NotificationManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
@@ -29,12 +31,16 @@ import rw.nexera.nexguard.util.DeviceInfo
 /**
  * Keeps location updates running while the app is closed or the screen is locked.
  * Normal mode: about every 5 minutes, balanced power. Lost mode: every minute, GPS.
+ * Live mode (the owner asked, for up to 30 minutes): every 5 seconds, GPS, uploaded at once.
  */
 class TrackingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var client: FusedLocationProviderClient
     private var lostMode = false
     private var requesting = false
+    private var live = false
+    private val main = Handler(Looper.getMainLooper())
+    private val liveEnded = Runnable { if (requesting) requestUpdates() }
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -74,6 +80,12 @@ class TrackingService : Service() {
         }
         // System broadcasts still reach a not-exported receiver; other apps cannot fake them.
         ContextCompat.registerReceiver(this, systemEvents, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        // Live tracking switched on or off by the owner (learned at each sync).
+        scope.launch {
+            LiveMode.untilMs.collect {
+                main.post { if (requesting && LiveMode.isLive() != live) requestUpdates() }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -86,7 +98,7 @@ class TrackingService : Service() {
             ServiceCompat.startForeground(
                 this,
                 Notifications.TRACKING_ID,
-                Notifications.tracking(this, newLostMode),
+                Notifications.tracking(this, newLostMode, LiveMode.isLive()),
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0,
             )
         } catch (e: Exception) {
@@ -105,22 +117,38 @@ class TrackingService : Service() {
     @SuppressLint("MissingPermission") // checked in onStartCommand
     private fun requestUpdates() {
         client.removeLocationUpdates(callback)
-        val interval = if (lostMode) LOST_INTERVAL_MS else NORMAL_INTERVAL_MS
+        main.removeCallbacks(liveEnded)
+        live = LiveMode.isLive()
+        val precise = live || lostMode
+        val interval = when {
+            live -> LIVE_INTERVAL_MS
+            lostMode -> LOST_INTERVAL_MS
+            else -> NORMAL_INTERVAL_MS
+        }
         val request = LocationRequest.Builder(
-            if (lostMode) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+            if (precise) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY,
             interval,
         )
             .setMinUpdateIntervalMillis(interval / 2)
-            .setMinUpdateDistanceMeters(if (lostMode) 0f else 25f)
-            .setMaxUpdateDelayMillis(interval * 2)
+            .setMinUpdateDistanceMeters(if (precise) 0f else 25f)
+            // Live: deliver each position at once (no batching), so the owner sees it move.
+            .setMaxUpdateDelayMillis(if (live) 0 else interval * 2)
             .build()
         client.requestLocationUpdates(request, callback, Looper.getMainLooper())
         requesting = true
+        // The notification says when the location is shared live (nobody is tracked without knowing).
+        runCatching {
+            getSystemService(NotificationManager::class.java)
+                .notify(Notifications.TRACKING_ID, Notifications.tracking(this, lostMode, live))
+        }
+        // Back to the normal rate when live tracking ends, even if no sync happens then.
+        if (live) main.postDelayed(liveEnded, LiveMode.untilMs.value - System.currentTimeMillis() + 1000)
     }
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(systemEvents) }
         client.removeLocationUpdates(callback)
+        main.removeCallbacks(liveEnded)
         scope.cancel()
         super.onDestroy()
     }
@@ -134,6 +162,7 @@ class TrackingService : Service() {
         private const val ACTION_SIM_STATE_CHANGED = "android.intent.action.SIM_STATE_CHANGED"
         private const val NORMAL_INTERVAL_MS = 5 * 60_000L
         private const val LOST_INTERVAL_MS = 60_000L
+        private const val LIVE_INTERVAL_MS = 5_000L
 
         /** Call from the app's own screens or from boot: Android allows a foreground start there. */
         fun start(ctx: Context, lostMode: Boolean) {

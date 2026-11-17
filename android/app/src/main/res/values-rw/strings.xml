@@ -13,6 +13,8 @@
     <string name="notif_tracking">NexGuard irinda iyi telefoni</string>
     <string name="notif_tracking_lost">NexGuard: iyi telefoni yatangajwe ko yabuze</string>
     <string name="notif_tracking_text">Aho iri hasangizwa konti ya NexGuard ya nyirayo.</string>
+    <string name="notif_tracking_live">NexGuard: irerekana aho iri ako kanya</string>
+    <string name="notif_tracking_live_text">Nyirayo arakurikirana iyi telefoni ako kanya mu minota mike. Bihagarara byonyine.</string>
     <string name="notif_alarm">Inzogera ya NexGuard</string>
     <string name="notif_alarm_text">Nyiri iyi telefoni arayishakisha.</string>
     <string name="notif_owner_message">Ubutumwa bwa nyiri iyi telefoni</string>

@@ -218,3 +218,40 @@ export const deleteFamily = () => api('/family', { method: 'DELETE' });
 
 // NexGuard team: billing
 export const adminBillingStats = () => api('/admin/billing/stats');
+
+// Live tracking: the device sends its position every few seconds for a while.
+export const startLive = (id, seconds) => api(`/devices/${id}/live`, { method: 'POST', body: seconds ? { seconds } : {} });
+export const stopLive = (id) => api(`/devices/${id}/live`, { method: 'POST', body: { stop: true } });
+
+/**
+ * Opens the device's live feed (server-sent events) and calls onEvent(name, data) for each event.
+ * Uses fetch, so the access token goes in the Authorization header rather than the URL.
+ * Resolves when the feed ends (network drop, sign-out, or the signal is aborted); the caller reconnects.
+ */
+export async function openDeviceStream(id, onEvent, signal) {
+  const connect = () =>
+    fetch(`${BASE}/devices/${id}/stream`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      credentials: 'include',
+      signal,
+    });
+  let res = await connect();
+  if (res.status === 401 && (await refreshSession())) res = await connect();
+  if (!res.ok || !res.body) throw new ApiError(res.status, null);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) return;
+    buffer += decoder.decode(value, { stream: true });
+    let i;
+    while ((i = buffer.indexOf('\n\n')) >= 0) {
+      const block = buffer.slice(0, i);
+      buffer = buffer.slice(i + 2);
+      const name = block.match(/^event: (.+)$/m)?.[1];
+      const data = block.match(/^data: (.+)$/m)?.[1];
+      if (name && data) onEvent(name, JSON.parse(data));
+    }
+  }
+}

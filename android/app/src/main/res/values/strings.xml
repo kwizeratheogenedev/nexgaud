@@ -17,6 +17,8 @@
     <string name="notif_tracking">NexGuard is protecting this phone</string>
     <string name="notif_tracking_lost">NexGuard: this phone is reported lost</string>
     <string name="notif_tracking_text">Its location is shared with the owner\'s NexGuard account.</string>
+    <string name="notif_tracking_live">NexGuard: sharing live location</string>
+    <string name="notif_tracking_live_text">The owner is following this phone live for a few minutes. It stops by itself.</string>
     <string name="notif_alarm">NexGuard alarm</string>
     <string name="notif_alarm_text">The owner is looking for this phone.</string>
     <string name="notif_owner_message">Message from this phone\'s owner</string>

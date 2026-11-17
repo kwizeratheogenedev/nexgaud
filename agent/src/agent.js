@@ -10,6 +10,8 @@ export const INTERVALS = {
   checkInLost: 60 * 1000,
   location: 15 * 60 * 1000,
   locationLost: 2 * 60 * 1000,
+  // Live tracking (the owner asked, for a few minutes): check in and send the location every 10 seconds.
+  live: 10 * 1000,
 };
 
 export class ApiError extends Error {
@@ -47,6 +49,7 @@ export class Agent {
     this.lastLocationAt = 0;
     this.lostShownSince = null;
     this.status = 'normal';
+    this.liveUntil = 0;
   }
 
   api(path, body) {
@@ -55,6 +58,10 @@ export class Agent {
 
   get lost() {
     return ['lost', 'stolen'].includes(this.status);
+  }
+
+  get live() {
+    return this.liveUntil > this.now();
   }
 
   /** One round: check in, act on the reply, send a location if one is due. */
@@ -69,7 +76,7 @@ export class Agent {
     });
     await this.handleState(state);
 
-    const every = this.lost ? INTERVALS.locationLost : INTERVALS.location;
+    const every = this.live ? INTERVALS.live : this.lost ? INTERVALS.locationLost : INTERVALS.location;
     if (this.platform.locationSupported && this.now() - this.lastLocationAt >= every) await this.sendLocation();
   }
 
@@ -87,6 +94,9 @@ export class Agent {
 
   async handleState(state) {
     this.status = state.status ?? 'normal';
+    const wasLive = this.live;
+    this.liveUntil = state.liveUntil ? new Date(state.liveUntil).getTime() : 0;
+    if (this.live !== wasLive) this.log(this.live ? 'Live tracking on: sending the location every 10 seconds' : 'Live tracking off');
     this.onState(state);
 
     // Lost mode: show the owner's message once each time the laptop is marked lost.
@@ -163,7 +173,7 @@ export class Agent {
       }
       await new Promise((resolve) => {
         this.wake = resolve;
-        setTimeout(resolve, this.lost ? INTERVALS.checkInLost : INTERVALS.checkIn);
+        setTimeout(resolve, this.live ? INTERVALS.live : this.lost ? INTERVALS.checkInLost : INTERVALS.checkIn);
       });
     }
   }

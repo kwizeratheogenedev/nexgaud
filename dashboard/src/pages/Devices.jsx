@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getRoute, listCommands, listDevices, removeDevice, sendCommand, updateDevice } from '../api.js';
+import { getRoute, listCommands, listDevices, openDeviceStream, removeDevice, sendCommand, startLive, stopLive, updateDevice } from '../api.js';
 import { dateTime, isLost, isOnline, timeAgo } from '../format.js';
 import { useI18n } from '../i18n.jsx';
 import { usePolling } from '../usePolling.js';
@@ -181,13 +181,30 @@ function LostPanel({ device, onSave, busy }) {
 }
 
 /** Walk to the device: show where I am, how far and which way; or open turn-by-turn directions. */
-function FindPanel({ device, finding, setFinding, me, error }) {
+function FindPanel({ device, finding, setFinding, me, error, onLive, liveBusy, liveError }) {
   const { lang, t } = useI18n();
   const last = device.lastLocation;
-  if (!last) return null;
+  const liveUntil = device.liveUntil ? new Date(device.liveUntil) : null;
+  const live = liveUntil && liveUntil > new Date();
   return (
     <div className="panel-section find-panel">
       <h3>{t('find.title')}</h3>
+      <div className={`live-box ${live ? 'is-live' : ''}`}>
+        {live ? (
+          <>
+            <p><span className="live-dot" aria-hidden="true" /> <strong>{t('live.on')}</strong></p>
+            <p className="hint">{t('live.until', { time: liveUntil.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' }) })}</p>
+            <button onClick={() => onLive(false)} disabled={liveBusy}>{t('live.stop')}</button>
+          </>
+        ) : (
+          <>
+            <p className="hint">{t('live.intro')}</p>
+            <button className="primary-inline" onClick={() => onLive(true)} disabled={liveBusy}>{t('live.start')}</button>
+          </>
+        )}
+        {liveError && <p className="error">{liveError}</p>}
+      </div>
+      {!last ? null : (<>
       <p className="hint">{t('find.intro')}</p>
       <div className="actions">
         <button className={finding ? '' : 'primary-inline'} onClick={() => setFinding(!finding)}>
@@ -200,6 +217,7 @@ function FindPanel({ device, finding, setFinding, me, error }) {
       <p className="hint">
         {t('find.lastKnown', { time: timeAgo(last.at, lang, t), accuracy: Math.round(last.accuracyM ?? 0) })}
       </p>
+      </>)}
     </div>
   );
 }
@@ -257,9 +275,54 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
   const [addingLaptop, setAddingLaptop] = useState(false);
   const [finding, setFinding] = useState(false);
   const { me, error: findError } = useMyPosition(finding);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [liveError, setLiveError] = useState('');
 
   const selected = devices?.find((d) => d.id === selectedId) ?? null;
-  useEffect(() => setFinding(false), [selectedId]);
+  useEffect(() => {
+    setFinding(false);
+    setLiveError('');
+  }, [selectedId]);
+
+  // The selected device's live feed: each new position and status arrives here as soon as the device sends it,
+  // so the marker moves along the road instead of jumping every 30 seconds. Reconnects after a network drop.
+  useEffect(() => {
+    if (!selectedId) return undefined;
+    const controller = new AbortController();
+    const merge = (changes) => setDevices((list) => (list ?? []).map((d) => (d.id === selectedId ? { ...d, ...changes } : d)));
+    const onEvent = (name, data) => {
+      if (name === 'location') {
+        merge({ lastLocation: { lat: data.lat, lng: data.lng, accuracyM: data.accuracyM, at: data.at }, ...(data.battery != null ? { battery: data.battery } : {}) });
+        setRoute((r) => [...r, { lat: data.lat, lng: data.lng, accuracyM: data.accuracyM, battery: data.battery, at: data.at }]);
+      } else if (name === 'state') {
+        merge({ status: data.status, battery: data.battery, charging: data.charging, lastSeenAt: data.lastSeenAt, liveUntil: data.liveUntil });
+      }
+    };
+    (async () => {
+      while (!controller.signal.aborted) {
+        try {
+          await openDeviceStream(selectedId, onEvent, controller.signal);
+        } catch {
+          // dropped or refused: wait and try again
+        }
+        if (!controller.signal.aborted) await new Promise((r) => setTimeout(r, 3000));
+      }
+    })();
+    return () => controller.abort();
+  }, [selectedId, setDevices]);
+
+  async function toggleLive(on) {
+    setLiveBusy(true);
+    setLiveError('');
+    try {
+      const res = on ? await startLive(selected.id) : await stopLive(selected.id);
+      setDevices((ds) => ds.map((d) => (d.id === res.device.id ? { ...d, ...res.device } : d)));
+    } catch (err) {
+      setLiveError(err.message);
+    } finally {
+      setLiveBusy(false);
+    }
+  }
 
   const loadDevices = useCallback(async () => {
     try {
@@ -371,7 +434,7 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
       </aside>
 
       <section className="map-area">
-        <DeviceMap device={selected} route={route} me={finding ? me : null} />
+        <DeviceMap device={selected} route={route} me={finding ? me : null} follow={Boolean(selected?.liveUntil && new Date(selected.liveUntil) > new Date())} />
         {finding && <FindOverlay device={selected} me={me} />}
         {!selected?.lastLocation && <p className="map-note">{t('devices.noLocation')}</p>}
       </section>
@@ -419,7 +482,7 @@ export default function Devices({ devices, setDevices, selectedId, setSelectedId
             {error && <p className="error" role="alert">{error}</p>}
           </div>
 
-          <FindPanel device={selected} finding={finding} setFinding={setFinding} me={me} error={findError} />
+          <FindPanel device={selected} finding={finding} setFinding={setFinding} me={me} error={findError} onLive={toggleLive} liveBusy={liveBusy} liveError={liveError} />
           {!selected.sharedBy && <LostPanel key={selected.id} device={selected} onSave={saveDevice} busy={busy} />}
           <DeviceAlerts alerts={deviceAlerts} />
           <CommandPanel device={selected} commands={commands} onSend={send} busy={busy} />

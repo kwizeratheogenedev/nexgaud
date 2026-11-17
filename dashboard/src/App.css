@@ -352,3 +352,11 @@ a.button-link:hover { border-color: var(--accent); }
 }
 .find-overlay strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 .find-overlay small { color: var(--muted); }
+
+/* Live tracking */
+.live-box { border: 1px solid var(--border); border-radius: 10px; padding: 4px 12px 12px; margin-bottom: 10px; }
+.live-box.is-live { border-color: var(--bad); background: var(--bad-bg); }
+.live-box p { margin: 8px 0; }
+.live-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--bad); animation: pulse 1.2s ease-in-out infinite; vertical-align: middle; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }

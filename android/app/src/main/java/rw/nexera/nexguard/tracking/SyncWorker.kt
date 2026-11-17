@@ -49,6 +49,8 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
             val beat = Api.heartbeat(token, DeviceInfo.heartbeat(ctx, state.pushToken))
             commands += beat.commands
+            // Live tracking on or off: TrackingService picks this up and changes its rate.
+            LiveMode.fromServer(beat.liveUntil)
 
             val lost = beat.lost
             prefs.setLostMode(lost, beat.lostMode?.message, beat.lostMode?.contactPhone)

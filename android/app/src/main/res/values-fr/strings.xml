@@ -13,6 +13,8 @@
     <string name="notif_tracking">NexGuard protège ce téléphone</string>
     <string name="notif_tracking_lost">NexGuard : ce téléphone est signalé perdu</string>
     <string name="notif_tracking_text">Sa position est partagée avec le compte NexGuard du propriétaire.</string>
+    <string name="notif_tracking_live">NexGuard : position partagée en direct</string>
+    <string name="notif_tracking_live_text">Le propriétaire suit ce téléphone en direct pendant quelques minutes. Cela s\'arrête tout seul.</string>
     <string name="notif_alarm">Alarme NexGuard</string>
     <string name="notif_alarm_text">Le propriétaire cherche ce téléphone.</string>
     <string name="notif_owner_message">Message du propriétaire de ce téléphone</string>
